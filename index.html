@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0b1020" />
+  <title>Card Notes & Pay</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <span class="logo">💳</span>
+      <h1 id="screenTitle">สรุป</h1>
+    </div>
+    <div class="header-actions">
+      <button id="langBtn" class="icon-btn" title="ภาษา / Language">TH</button>
+      <button id="settingsBtn" class="icon-btn" title="ตั้งค่า / Settings">⚙</button>
+    </div>
+  </header>
+
+  <main id="view" class="view"><!-- screens render here --></main>
+
+  <nav class="tabbar" id="tabbar">
+    <button class="tab active" data-screen="home"><span class="ti">🏠</span><span data-i18n="nav.home">สรุป</span></button>
+    <button class="tab" data-screen="pay"><span class="ti">💸</span><span data-i18n="nav.pay">จ่าย</span></button>
+    <button class="tab tab-add" data-screen="spend"><span class="ti">＋</span><span data-i18n="nav.spend">บันทึก</span></button>
+    <button class="tab" data-screen="installments"><span class="ti">📆</span><span data-i18n="nav.installments">ผ่อน</span></button>
+    <button class="tab" data-screen="cards"><span class="ti">🗂️</span><span data-i18n="nav.cards">บัตร</span></button>
+  </nav>
+
+  <!-- Modal host -->
+  <div id="modalHost" class="modal-host hidden"></div>
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="js/seed.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/xlsx.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+    }
+  </script>
+</body>
+</html>

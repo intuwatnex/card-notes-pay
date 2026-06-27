@@ -1,0 +1,663 @@
+/* App logic */
+'use strict';
+
+// ---------- helpers ----------
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+const view = $('#view');
+
+function h(tag, attrs = {}, children = []) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v;
+    else if (k === 'html') e.innerHTML = v;
+    else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
+    else if (v !== null && v !== undefined && v !== false) e.setAttribute(k, v);
+  }
+  for (const c of [].concat(children)) {
+    if (c == null || c === false) continue;
+    e.append(c.nodeType ? c : document.createTextNode(c));
+  }
+  return e;
+}
+
+const money = (n) => '฿' + (Math.round((n || 0) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const todayYM = () => new Date().toISOString().slice(0, 7);
+const ymLabel = (ym) => {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m - 1, 1);
+  return d.toLocaleDateString(LANG === 'th' ? 'th-TH' : 'en-US', { month: 'short', year: 'numeric' });
+};
+function addMonths(dateStr, n) {
+  const d = new Date(dateStr);
+  d.setMonth(d.getMonth() + n);
+  return d;
+}
+function monthsBetween(startStr, end = new Date()) {
+  const s = new Date(startStr);
+  return (end.getFullYear() - s.getFullYear()) * 12 + (end.getMonth() - s.getMonth()) +
+    (end.getDate() >= s.getDate() ? 0 : -1);
+}
+const fmtDate = (d) => (d instanceof Date ? d : new Date(d)).toLocaleDateString(LANG === 'th' ? 'th-TH' : 'en-US', { day: 'numeric', month: 'short', year: '2-digit' });
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+function toast(msg) {
+  const el = $('#toast');
+  el.textContent = msg; el.classList.remove('hidden');
+  clearTimeout(el._t); el._t = setTimeout(() => el.classList.add('hidden'), 2200);
+}
+
+// ---------- installment math ----------
+function computeInstallment(it, today = new Date()) {
+  const rate = Number(it.interestRate) || 0;
+  const total = (Number(it.principal) || 0) * (1 + rate / 100);
+  const totalMonths = Number(it.totalMonths) || 1;
+  const perMonth = it.perMonth ? Number(it.perMonth) : total / totalMonths;
+  let paid;
+  if (it.manualPaid != null && it.manualPaid !== '') paid = Number(it.manualPaid);
+  else paid = monthsBetween(it.startDate, today) + 1; // first payment on start date
+  paid = clamp(paid, 0, totalMonths);
+  const left = totalMonths - paid;
+  const remaining = perMonth * left;
+  const endDate = addMonths(it.startDate, totalMonths - 1);
+  const nextDue = left > 0 ? addMonths(it.startDate, paid) : null;
+  return { total, perMonth, paid, left, remaining, endDate, nextDue, totalMonths, progress: paid / totalMonths };
+}
+
+// ---------- state ----------
+const State = { screen: 'home', month: todayYM(), cards: [], spending: [], installments: [] };
+
+async function refresh() {
+  State.cards = await DB.cards.all();
+  State.spending = await DB.spending.all();
+  State.installments = await DB.installments.all();
+}
+const cardById = (id) => State.cards.find(c => c.id === id);
+const cardColor = (i) => ['#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316', '#3b82f6'][i % 10];
+
+// ---------- seeding ----------
+async function seedIfNeeded() {
+  const flag = await DB.meta.get('seeded');
+  if (flag && flag.value) return;
+  const S = window.SEED || {};
+  const nameToId = {};
+  let idx = 0;
+  for (const c of (S.cards || [])) {
+    const id = await DB.cards.save({ name: c.name, bank: c.name, stmtDate: c.stmtDate || null, dueDate: c.dueDate || null, qr: null, color: cardColor(idx++) });
+    nameToId[c.name] = id;
+  }
+  for (const s of (S.spending || [])) {
+    const cid = nameToId[s.card];
+    if (cid) await DB.spending.save({ cardId: cid, month: s.month, amount: s.amount, note: '', paid: false });
+  }
+  for (const inc of (S.income || [])) await DB.income.save(inc.month, inc.amount);
+  for (const it of (S.installments || [])) {
+    await DB.installments.save({
+      bank: it.bank, detail: it.detail, startDate: it.start,
+      principal: it.amount, totalMonths: it.totalMonth, interestRate: 0,
+      perMonth: it.perMonth || null, manualPaid: null,
+    });
+  }
+  await DB.meta.set('seeded', true);
+}
+
+// ---------- screens ----------
+const Screens = {};
+
+Screens.home = async () => {
+  const month = State.month;
+  const inc = await DB.income.get(month);
+  const income = inc ? inc.amount : 0;
+  const monthSpend = State.spending.filter(s => s.month === month);
+  const totalSpend = monthSpend.reduce((a, s) => a + (s.amount || 0), 0);
+  const unpaid = monthSpend.filter(s => !s.paid).reduce((a, s) => a + (s.amount || 0), 0);
+  const instLoad = State.installments.map(i => computeInstallment(i)).filter(c => c.left > 0).reduce((a, c) => a + c.perMonth, 0);
+
+  const wrap = h('div', { class: 'screen' });
+  wrap.append(monthPicker());
+
+  const stats = h('div', { class: 'stat-grid' }, [
+    statCard(t('home.income'), money(income), 'income', () => editIncome()),
+    statCard(t('home.spending'), money(totalSpend), 'spend'),
+    statCard(t('home.due'), money(unpaid), 'due'),
+    statCard(t('home.installmentLoad'), money(instLoad), 'inst'),
+  ]);
+  wrap.append(stats);
+
+  // upcoming due (sorted by due day)
+  const upcoming = State.cards
+    .map(c => ({ c, sp: monthSpend.find(s => s.cardId === c.id && !s.paid) }))
+    .filter(x => x.sp)
+    .sort((a, b) => (a.c.dueDate || 99) - (b.c.dueDate || 99));
+  wrap.append(sectionTitle(t('home.upcoming')));
+  if (!upcoming.length) wrap.append(emptyNote(t('home.none')));
+  upcoming.forEach(({ c, sp }) => {
+    wrap.append(h('div', { class: 'row card-row', onclick: () => go('pay') }, [
+      cardDot(c),
+      h('div', { class: 'row-main' }, [
+        h('div', { class: 'row-title' }, c.name),
+        h('div', { class: 'row-sub' }, c.dueDate ? `${t('pay.due')} ${t('pay.day')} ${c.dueDate}` : ''),
+      ]),
+      h('div', { class: 'row-amt' }, money(sp.amount)),
+    ]));
+  });
+
+  // by card breakdown
+  wrap.append(sectionTitle(t('home.byCard')));
+  const byCard = State.cards.map(c => {
+    const amt = monthSpend.filter(s => s.cardId === c.id).reduce((a, s) => a + s.amount, 0);
+    return { c, amt };
+  }).filter(x => x.amt > 0).sort((a, b) => b.amt - a.amt);
+  if (!byCard.length) wrap.append(emptyNote(t('home.none')));
+  byCard.forEach(({ c, amt }) => {
+    const pct = totalSpend ? (amt / totalSpend * 100) : 0;
+    wrap.append(h('div', { class: 'bar-row' }, [
+      h('div', { class: 'bar-label' }, [cardDot(c), h('span', {}, c.name)]),
+      h('div', { class: 'bar-track' }, h('div', { class: 'bar-fill', style: `width:${pct}%;background:${c.color}` })),
+      h('div', { class: 'bar-amt' }, money(amt)),
+    ]));
+  });
+
+  return wrap;
+};
+
+Screens.pay = async () => {
+  const month = State.month;
+  const wrap = h('div', { class: 'screen' });
+  wrap.append(monthPicker());
+  const monthSpend = State.spending.filter(s => s.month === month);
+  const totalDue = monthSpend.filter(s => !s.paid).reduce((a, s) => a + s.amount, 0);
+  wrap.append(h('div', { class: 'banner' }, [
+    h('span', {}, t('pay.totalDue')),
+    h('strong', {}, money(totalDue)),
+  ]));
+
+  const cardsWithSpend = State.cards
+    .map(c => ({ c, sp: monthSpend.find(s => s.cardId === c.id) }))
+    .filter(x => x.sp && x.sp.amount > 0)
+    .sort((a, b) => (a.c.dueDate || 99) - (b.c.dueDate || 99));
+
+  if (!cardsWithSpend.length) wrap.append(emptyNote(t('home.none')));
+  cardsWithSpend.forEach(({ c, sp }) => {
+    const paid = sp.paid;
+    const card = h('div', { class: 'pay-card' + (paid ? ' is-paid' : '') }, [
+      h('div', { class: 'pay-head' }, [
+        cardDot(c),
+        h('div', { class: 'row-main' }, [
+          h('div', { class: 'row-title' }, c.name),
+          h('div', { class: 'row-sub' }, c.dueDate ? `${t('pay.due')} ${t('pay.day')} ${c.dueDate} · ${t('pay.stmt')} ${c.stmtDate || '-'}` : ''),
+        ]),
+        h('div', { class: 'row-amt big' }, money(sp.amount)),
+      ]),
+      // QR shown inline by default once uploaded; tap to enlarge / change / remove
+      c.qr ? h('div', { class: 'pay-qr', onclick: () => showQR(c) }, [
+        h('img', { src: c.qr, class: 'pay-qr-img', alt: 'QR' }),
+        h('div', { class: 'muted small center' }, '👆 ' + t('pay.scanToPay')),
+      ]) : null,
+      h('div', { class: 'pay-actions' }, [
+        c.qr ? null
+          : h('button', { class: 'btn ghost', onclick: () => uploadQRForCard(c) }, '⬆ ' + t('cards.uploadQR')),
+        h('button', {
+          class: 'btn ' + (paid ? 'paid-tag' : 'primary'),
+          onclick: async () => { sp.paid = !sp.paid; sp.paidDate = sp.paid ? new Date().toISOString() : null; await DB.spending.save(sp); await rerender(); }
+        }, paid ? '✓ ' + t('pay.paid') : t('pay.markPaid')),
+      ]),
+    ]);
+    wrap.append(card);
+  });
+  return wrap;
+};
+
+Screens.spend = async () => {
+  const wrap = h('div', { class: 'screen' });
+  const form = h('div', { class: 'form-card' });
+  const cardSel = h('select', { class: 'input' }, [
+    h('option', { value: '' }, t('spend.selectCard')),
+    ...State.cards.map(c => h('option', { value: c.id }, c.name)),
+  ]);
+  const monthInput = h('input', { class: 'input', type: 'month', value: State.month });
+  const amtInput = h('input', { class: 'input', type: 'number', inputmode: 'decimal', step: '0.01', placeholder: '0.00' });
+  const noteInput = h('input', { class: 'input', type: 'text', placeholder: t('spend.placeholderNote') });
+
+  form.append(
+    field(t('spend.card'), cardSel),
+    field(t('spend.month'), monthInput),
+    field(t('spend.amount') + ' (฿)', amtInput),
+    field(t('spend.note'), noteInput),
+    h('button', {
+      class: 'btn primary block', onclick: async () => {
+        const cardId = Number(cardSel.value);
+        const amount = parseFloat(amtInput.value);
+        if (!cardId || !(amount >= 0) || !amtInput.value) { toast(t('common.required')); return; }
+        await DB.spending.save({ cardId, month: monthInput.value, amount, note: noteInput.value.trim(), paid: false });
+        amtInput.value = ''; noteInput.value = '';
+        toast(t('spend.saved'));
+        State.month = monthInput.value;
+        await rerender();
+      }
+    }, '＋ ' + t('spend.save')),
+  );
+  wrap.append(form);
+
+  // this month entries
+  wrap.append(sectionTitle(t('spend.thisMonth') + ' · ' + ymLabel(State.month)));
+  const list = State.spending.filter(s => s.month === State.month).sort((a, b) => b.id - a.id);
+  if (!list.length) wrap.append(emptyNote(t('home.none')));
+  list.forEach(s => {
+    const c = cardById(s.cardId) || { name: '?', color: '#888' };
+    wrap.append(h('div', { class: 'row card-row' }, [
+      cardDot(c),
+      h('div', { class: 'row-main' }, [
+        h('div', { class: 'row-title' }, c.name),
+        h('div', { class: 'row-sub' }, s.note || ''),
+      ]),
+      h('div', { class: 'row-amt' }, money(s.amount)),
+      iconBtn('🗑', async () => { if (confirm(t('common.confirmDelete'))) { await DB.spending.remove(s.id); await rerender(); } }),
+    ]));
+  });
+  return wrap;
+};
+
+Screens.installments = async () => {
+  const wrap = h('div', { class: 'screen' });
+  const comps = State.installments.map(it => ({ it, c: computeInstallment(it) }));
+  const monthly = comps.filter(x => x.c.left > 0).reduce((a, x) => a + x.c.perMonth, 0);
+  const remaining = comps.reduce((a, x) => a + x.c.remaining, 0);
+  wrap.append(h('div', { class: 'stat-grid two' }, [
+    statCard(t('inst.totalMonthlyLoad'), money(monthly), 'inst'),
+    statCard(t('inst.totalRemaining'), money(remaining), 'due'),
+  ]));
+  wrap.append(h('button', { class: 'btn primary block', onclick: () => editInstallment() }, '＋ ' + t('inst.add')));
+  wrap.append(h('div', { class: 'note-line' }, '⏱ ' + t('inst.autoNote')));
+
+  if (!comps.length) wrap.append(emptyNote(t('home.none')));
+  comps.sort((a, b) => a.c.left - b.c.left).forEach(({ it, c }) => {
+    const done = c.left <= 0;
+    wrap.append(h('div', { class: 'inst-card' + (done ? ' done' : ''), onclick: () => editInstallment(it) }, [
+      h('div', { class: 'inst-head' }, [
+        h('div', {}, [
+          h('div', { class: 'row-title' }, `${it.bank}`),
+          h('div', { class: 'row-sub' }, it.detail || ''),
+        ]),
+        h('div', { class: 'inst-perm' }, [
+          h('div', { class: 'row-amt big' }, money(c.perMonth)),
+          h('div', { class: 'row-sub' }, '/' + t('inst.monthsUnit'),)
+        ]),
+      ]),
+      h('div', { class: 'prog' }, h('div', { class: 'prog-fill', style: `width:${c.progress * 100}%` })),
+      h('div', { class: 'inst-meta' }, [
+        chip(`${c.paid}/${c.totalMonths} ${t('inst.monthsUnit')}`),
+        done ? chip('✓ ' + t('inst.done'), 'ok') : chip(`${t('inst.left')} ${c.left} ${t('inst.monthsUnit')}`),
+        chip(`${t('inst.remaining')} ${money(c.remaining)}`),
+        Number(it.interestRate) ? chip(`${it.interestRate}%`) : chip(t('inst.zeroPct'), 'ok'),
+        chip(`${t('inst.end')} ${fmtDate(c.endDate)}`),
+      ]),
+    ]));
+  });
+  return wrap;
+};
+
+Screens.cards = async () => {
+  const wrap = h('div', { class: 'screen' });
+  wrap.append(h('button', { class: 'btn primary block', onclick: () => editCard() }, '＋ ' + t('cards.add')));
+  if (!State.cards.length) wrap.append(emptyNote(t('home.none')));
+  State.cards.forEach(c => {
+    const total = State.spending.filter(s => s.cardId === c.id).reduce((a, s) => a + s.amount, 0);
+    wrap.append(h('div', { class: 'row card-row', onclick: () => editCard(c) }, [
+      cardDot(c, true),
+      h('div', { class: 'row-main' }, [
+        h('div', { class: 'row-title' }, c.name),
+        h('div', { class: 'row-sub' }, [
+          c.dueDate ? `${t('cards.due')} ${c.dueDate}` : '',
+          c.stmtDate ? ` · ${t('cards.stmt')} ${c.stmtDate}` : '',
+          c.qr ? ' · 📷 QR' : '',
+        ].join('')),
+      ]),
+      h('div', { class: 'row-amt' }, money(total)),
+    ]));
+  });
+  return wrap;
+};
+
+Screens.settings = async () => {
+  const wrap = h('div', { class: 'screen' });
+  // language
+  wrap.append(sectionTitle(t('settings.lang')));
+  wrap.append(h('div', { class: 'seg' }, [
+    segBtn('ไทย', LANG === 'th', () => switchLang('th')),
+    segBtn('English', LANG === 'en', () => switchLang('en')),
+  ]));
+  // backup
+  wrap.append(sectionTitle(t('settings.backup')));
+  wrap.append(h('div', { class: 'muted small mb' }, t('settings.exportXlsxDesc')));
+  wrap.append(h('button', { class: 'btn primary block', onclick: exportExcel }, '📊 ' + t('settings.exportXlsx')));
+  wrap.append(h('div', { class: 'muted small mb', style: 'margin-top:10px' }, t('settings.exportDesc')));
+  wrap.append(h('button', { class: 'btn block', onclick: exportData }, '⬇ ' + t('settings.export')));
+  const fileIn = h('input', { type: 'file', accept: 'application/json', style: 'display:none', onchange: importData });
+  wrap.append(h('button', { class: 'btn block', onclick: () => fileIn.click() }, '⬆ ' + t('settings.import')));
+  wrap.append(fileIn);
+  // danger
+  wrap.append(sectionTitle(t('settings.danger')));
+  wrap.append(h('div', { class: 'muted small mb' }, t('settings.dangerDesc')));
+  wrap.append(h('button', { class: 'btn block', onclick: async () => { await DB.meta.set('seeded', false); await DB.wipe(); await seedIfNeeded(); await rerender('home'); toast('✓'); } }, '↻ ' + t('settings.reseed')));
+  wrap.append(h('button', { class: 'btn danger block', onclick: async () => { if (confirm(t('common.confirmDelete'))) { await DB.wipe(); await rerender('home'); toast(t('common.deleted')); } } }, '🗑 ' + t('settings.danger')));
+  // about
+  wrap.append(sectionTitle(t('settings.about')));
+  wrap.append(h('div', { class: 'muted small' }, t('settings.aboutText')));
+  return wrap;
+};
+
+// ---------- small UI builders ----------
+function monthPicker() {
+  const prev = h('button', { class: 'mp-btn', onclick: () => shiftMonth(-1) }, '‹');
+  const next = h('button', { class: 'mp-btn', onclick: () => shiftMonth(1) }, '›');
+  const lbl = h('button', { class: 'mp-label', onclick: () => {
+    const inp = h('input', { type: 'month', value: State.month, class: 'hidden-month' });
+    inp.addEventListener('change', () => { State.month = inp.value; rerender(); });
+    inp.click(); inp.showPicker && inp.showPicker();
+  } }, ymLabel(State.month));
+  return h('div', { class: 'monthpicker' }, [prev, lbl, next]);
+}
+function shiftMonth(d) {
+  const [y, m] = State.month.split('-').map(Number);
+  const nd = new Date(y, m - 1 + d, 1);
+  State.month = nd.toISOString().slice(0, 7);
+  rerender();
+}
+function statCard(label, value, kind, onclick) {
+  return h('div', { class: 'stat ' + (kind || '') + (onclick ? ' click' : ''), onclick }, [
+    h('div', { class: 'stat-label' }, label),
+    h('div', { class: 'stat-value' }, value),
+  ]);
+}
+function sectionTitle(txt) { return h('h2', { class: 'section-title' }, txt); }
+function emptyNote(txt) { return h('div', { class: 'empty' }, txt); }
+function cardDot(c, big) { return h('span', { class: 'cdot' + (big ? ' big' : ''), style: `background:${c.color || '#888'}` }, (c.name || '?').slice(0, 1)); }
+function chip(txt, kind) { return h('span', { class: 'chip ' + (kind || '') }, txt); }
+function field(label, input) { return h('label', { class: 'field' }, [h('span', { class: 'field-label' }, label), input]); }
+function iconBtn(txt, onclick) { return h('button', { class: 'icon-btn small', onclick: (e) => { e.stopPropagation(); onclick(e); } }, txt); }
+function segBtn(txt, active, onclick) { return h('button', { class: 'seg-btn' + (active ? ' active' : ''), onclick }, txt); }
+
+// ---------- modals ----------
+function openModal(title, bodyEls, footerEls) {
+  const host = $('#modalHost');
+  host.innerHTML = '';
+  const sheet = h('div', { class: 'sheet' }, [
+    h('div', { class: 'sheet-head' }, [h('h3', {}, title), h('button', { class: 'icon-btn', onclick: closeModal }, '✕')]),
+    h('div', { class: 'sheet-body' }, bodyEls),
+    footerEls ? h('div', { class: 'sheet-foot' }, footerEls) : null,
+  ]);
+  host.append(h('div', { class: 'backdrop', onclick: closeModal }), sheet);
+  host.classList.remove('hidden');
+}
+function closeModal() { const host = $('#modalHost'); host.classList.add('hidden'); host.innerHTML = ''; }
+
+function showQR(c) {
+  openModal(c.name, [
+    h('div', { class: 'qr-wrap' }, [
+      h('img', { src: c.qr, class: 'qr-img', alt: 'QR' }),
+      h('div', { class: 'muted small center' }, t('pay.scanToPay')),
+    ]),
+  ], [
+    h('button', { class: 'btn danger', onclick: async () => { c.qr = null; await DB.cards.save(c); closeModal(); await rerender(); toast('✓'); } }, '🗑 ' + t('cards.removeQR')),
+    h('button', { class: 'btn', onclick: async () => { const d = await pickImage(); if (d) { c.qr = d; await DB.cards.save(c); await rerender(); showQR(c); toast('✓'); } } }, t('cards.changeQR')),
+  ]);
+}
+
+async function editIncome() {
+  const cur = await DB.income.get(State.month);
+  const inp = h('input', { class: 'input', type: 'number', inputmode: 'decimal', value: cur ? cur.amount : '', placeholder: '0.00' });
+  openModal(t('home.setIncome') + ' · ' + ymLabel(State.month), [field(t('home.income') + ' (฿)', inp)], [
+    h('button', { class: 'btn', onclick: closeModal }, t('common.cancel')),
+    h('button', { class: 'btn primary', onclick: async () => { await DB.income.save(State.month, parseFloat(inp.value) || 0); closeModal(); await rerender(); } }, t('common.save')),
+  ]);
+}
+
+// Opens the device file/camera picker and resolves to a downscaled data URL (or null).
+// Must run synchronously inside a user gesture (iOS requirement) — the input is
+// created and clicked before the returned promise is awaited.
+function pickImage() {
+  return new Promise((resolve) => {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'image/*';
+    inp.onchange = async () => resolve(inp.files && inp.files[0] ? await readImageAsDataURL(inp.files[0]) : null);
+    inp.click();
+  });
+}
+
+// Upload / attach a scan-to-pay QR image to a card from anywhere.
+async function uploadQRForCard(card) {
+  const data = await pickImage();
+  if (!data) return;
+  card.qr = data;
+  await DB.cards.save(card);
+  await rerender();
+  toast('✓');
+}
+
+function readImageAsDataURL(file, maxW = 720) {
+  return new Promise((resolve) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxW / img.width);
+        const cv = document.createElement('canvas');
+        cv.width = img.width * scale; cv.height = img.height * scale;
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        resolve(cv.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = r.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+
+function editCard(card) {
+  const c = card || { name: '', bank: '', stmtDate: '', dueDate: '', qr: null, color: cardColor(State.cards.length) };
+  const name = h('input', { class: 'input', value: c.name || '', placeholder: 'KBANK / SCB ...' });
+  const stmt = h('input', { class: 'input', type: 'number', min: 1, max: 31, value: c.stmtDate || '', placeholder: t('cards.dayOfMonth') });
+  const due = h('input', { class: 'input', type: 'number', min: 1, max: 31, value: c.dueDate || '', placeholder: t('cards.dayOfMonth') });
+  let qrData = c.qr;
+  const qrPreview = h('div', { class: 'qr-mini' }, qrData ? h('img', { src: qrData }) : h('span', { class: 'muted small' }, '—'));
+  const qrFile = h('input', { type: 'file', accept: 'image/*', style: 'display:none', onchange: async (e) => {
+    if (e.target.files[0]) { qrData = await readImageAsDataURL(e.target.files[0]); qrPreview.innerHTML = ''; qrPreview.append(h('img', { src: qrData })); }
+  } });
+
+  const body = [
+    field(t('cards.name'), name),
+    h('div', { class: 'two-col' }, [field(t('cards.stmt'), stmt), field(t('cards.due'), due)]),
+    field(t('cards.qr'), h('div', { class: 'qr-edit' }, [
+      qrPreview,
+      h('div', { class: 'qr-edit-btns' }, [
+        h('button', { class: 'btn small', onclick: () => qrFile.click() }, qrData ? t('cards.changeQR') : t('cards.uploadQR')),
+        qrData ? h('button', { class: 'btn small ghost', onclick: () => { qrData = null; qrPreview.innerHTML = '<span class="muted small">—</span>'; } }, t('cards.removeQR')) : null,
+      ]),
+      qrFile,
+    ])),
+  ];
+  const foot = [
+    card ? h('button', { class: 'btn danger', onclick: async () => { if (confirm(t('common.confirmDelete'))) { await DB.cards.remove(c.id); closeModal(); await rerender(); } } }, t('common.delete')) : null,
+    h('button', { class: 'btn', onclick: closeModal }, t('common.cancel')),
+    h('button', { class: 'btn primary', onclick: async () => {
+      if (!name.value.trim()) { toast(t('common.required')); return; }
+      await DB.cards.save({ ...c, name: name.value.trim(), bank: name.value.trim(),
+        stmtDate: stmt.value ? Number(stmt.value) : null, dueDate: due.value ? Number(due.value) : null, qr: qrData });
+      closeModal(); await rerender();
+    } }, t('common.save')),
+  ];
+  openModal(card ? t('common.edit') : t('cards.add'), body, foot);
+}
+
+function editInstallment(it) {
+  const x = it || { bank: '', detail: '', startDate: todayYM() + '-01', principal: '', totalMonths: 6, interestRate: 0, manualPaid: '' };
+  const bank = h('input', { class: 'input', value: x.bank || '', placeholder: 'SCB / KBANK ...' });
+  const detail = h('input', { class: 'input', value: x.detail || '', placeholder: t('inst.detail') });
+  const start = h('input', { class: 'input', type: 'date', value: (x.startDate || '').slice(0, 10) });
+  const principal = h('input', { class: 'input', type: 'number', inputmode: 'decimal', value: x.principal || '', placeholder: '0.00' });
+  const months = h('select', { class: 'input' }, [3, 4, 6, 9, 10, 12, 18, 24, 36].map(m => h('option', { value: m, selected: Number(x.totalMonths) === m }, m + ' ' + t('inst.monthsUnit'))));
+  const rate = h('input', { class: 'input', type: 'number', inputmode: 'decimal', step: '0.01', value: x.interestRate || 0, placeholder: '0' });
+  const manual = h('input', { class: 'input', type: 'number', min: 0, value: x.manualPaid ?? '', placeholder: 'auto' });
+
+  const preview = h('div', { class: 'inst-preview' });
+  function upd() {
+    const tmp = { startDate: start.value, principal: parseFloat(principal.value) || 0, totalMonths: Number(months.value), interestRate: parseFloat(rate.value) || 0, manualPaid: manual.value === '' ? null : Number(manual.value) };
+    const c = computeInstallment(tmp);
+    preview.innerHTML = '';
+    preview.append(
+      h('div', { class: 'pv-row' }, [h('span', {}, t('inst.permonth')), h('strong', {}, money(c.perMonth))]),
+      h('div', { class: 'pv-row' }, [h('span', {}, t('inst.total')), h('span', {}, money(c.total))]),
+      h('div', { class: 'pv-row' }, [h('span', {}, `${t('inst.paid')} / ${t('inst.left')}`), h('span', {}, `${c.paid} / ${c.left} ${t('inst.monthsUnit')}`)]),
+      h('div', { class: 'pv-row' }, [h('span', {}, t('inst.remaining')), h('strong', {}, money(c.remaining))]),
+      h('div', { class: 'pv-row' }, [h('span', {}, t('inst.end')), h('span', {}, fmtDate(c.endDate))]),
+    );
+  }
+  [start, principal, months, rate, manual].forEach(el => el.addEventListener('input', upd));
+  setTimeout(upd, 0);
+
+  const body = [
+    h('div', { class: 'two-col' }, [field(t('inst.bank'), bank), field(t('inst.months'), months)]),
+    field(t('inst.detail'), detail),
+    h('div', { class: 'two-col' }, [field(t('inst.principal') + ' (฿)', principal), field(t('inst.rate'), rate)]),
+    h('div', { class: 'two-col' }, [field(t('inst.start'), start), field(t('inst.paid') + ' (' + t('common.optional') + ')', manual)]),
+    preview,
+  ];
+  const foot = [
+    it ? h('button', { class: 'btn danger', onclick: async () => { if (confirm(t('common.confirmDelete'))) { await DB.installments.remove(x.id); closeModal(); await rerender(); } } }, t('common.delete')) : null,
+    h('button', { class: 'btn', onclick: closeModal }, t('common.cancel')),
+    h('button', { class: 'btn primary', onclick: async () => {
+      if (!bank.value.trim() || !principal.value) { toast(t('common.required')); return; }
+      await DB.installments.save({ ...x, bank: bank.value.trim(), detail: detail.value.trim(),
+        startDate: start.value, principal: parseFloat(principal.value), totalMonths: Number(months.value),
+        interestRate: parseFloat(rate.value) || 0, manualPaid: manual.value === '' ? null : Number(manual.value), perMonth: null });
+      closeModal(); await rerender();
+    } }, t('common.save')),
+  ];
+  openModal(it ? t('common.edit') : t('inst.add'), body, foot);
+}
+
+// ---------- export to Excel ----------
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = h('a', { href: url, download: filename });
+  document.body.append(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function exportExcel() {
+  const cards = State.cards;
+  const spending = State.spending;
+  const incomeList = await DB.income.all();
+  const incomeByMonth = Object.fromEntries(incomeList.map(i => [i.month, i.amount]));
+
+  // ---- Sheet 1: Paid (CARD) — month x card matrix (mirrors original) ----
+  const months = Array.from(new Set([
+    ...spending.map(s => s.month), ...incomeList.map(i => i.month),
+  ])).sort();
+  const amt = (cardId, month) => spending.filter(s => s.cardId === cardId && s.month === month).reduce((a, s) => a + (s.amount || 0), 0);
+
+  const paidRows = [];
+  paidRows.push(['INCOME', 'Month', ...cards.map(c => c.name), 'TOTAL']);
+  paidRows.push(['Salary', 'stmt date', ...cards.map(c => c.stmtDate || ''), '']);
+  paidRows.push(['', 'due date', ...cards.map(c => c.dueDate || ''), '']);
+  for (const m of months) {
+    const row = [incomeByMonth[m] ?? '', m];
+    let total = 0;
+    for (const c of cards) { const v = amt(c.id, m); row.push(v || ''); total += v; }
+    row.push(total || '');
+    paidRows.push(row);
+  }
+
+  // ---- Sheet 2: Installment (computed live) ----
+  const instRows = [['Bank', 'Detail', 'Start', 'Amount', 'Per month', 'Interest %', 'Total Months', 'Paid', 'Left Month', 'Remaining', 'Last payment']];
+  for (const it of State.installments) {
+    const c = computeInstallment(it);
+    instRows.push([
+      it.bank || '', it.detail || '', (it.startDate || '').slice(0, 10),
+      Number(it.principal) || 0, round2(c.perMonth), Number(it.interestRate) || 0,
+      c.totalMonths, c.paid, c.left, round2(c.remaining),
+      c.endDate.toISOString().slice(0, 10),
+    ]);
+  }
+
+  // ---- Sheet 3: Spending (flat list) ----
+  const spendRows = [['Card', 'Month', 'Amount', 'Note', 'Paid', 'Paid date']];
+  spending.slice().sort((a, b) => (a.month < b.month ? -1 : a.month > b.month ? 1 : 0))
+    .forEach(s => {
+      const c = cardById(s.cardId);
+      spendRows.push([c ? c.name : '?', s.month, Number(s.amount) || 0, s.note || '',
+        s.paid ? 'Yes' : 'No', s.paidDate ? s.paidDate.slice(0, 10) : '']);
+    });
+
+  // ---- Sheet 4: Cards ----
+  const cardRows = [['Card / Bank', 'Statement day', 'Due day', 'Has QR', 'Total spent']];
+  for (const c of cards) {
+    const total = spending.filter(s => s.cardId === c.id).reduce((a, s) => a + s.amount, 0);
+    cardRows.push([c.name, c.stmtDate || '', c.dueDate || '', c.qr ? 'Yes' : 'No', round2(total)]);
+  }
+
+  const blob = XLSX.write([
+    { name: 'Paid (CARD)', rows: paidRows },
+    { name: 'Installment', rows: instRows },
+    { name: 'Spending', rows: spendRows },
+    { name: 'Cards', rows: cardRows },
+  ]);
+  downloadBlob(blob, `card-notes-${todayYM()}.xlsx`);
+  toast('✓');
+}
+const round2 = (n) => Math.round((n || 0) * 100) / 100;
+
+// ---------- backup ----------
+async function exportData() {
+  const data = await DB.exportAll();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = h('a', { href: url, download: `card-notes-backup-${todayYM()}.json` });
+  document.body.append(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast('✓');
+}
+async function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (!data.cards && !data.installments) throw new Error('bad');
+    await DB.importAll(data);
+    await rerender('home');
+    toast('✓');
+  } catch (_) { toast('✗ invalid file'); }
+  e.target.value = '';
+}
+
+// ---------- navigation / render ----------
+async function go(screen) { State.screen = screen; await rerender(screen); }
+async function rerender(screen) {
+  if (screen) State.screen = screen;
+  await refresh();
+  applyStaticI18n();
+  $('#screenTitle').textContent = t('title.' + State.screen);
+  $$('#tabbar .tab').forEach(b => b.classList.toggle('active', b.dataset.screen === State.screen));
+  view.innerHTML = '';
+  const el = await (Screens[State.screen] || Screens.home)();
+  view.append(el);
+  view.scrollTop = 0;
+}
+function applyStaticI18n() {
+  $$('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  $('#langBtn').textContent = LANG === 'th' ? 'TH' : 'EN';
+  document.documentElement.lang = LANG;
+}
+async function switchLang(l) { setLang(l); await rerender(); }
+
+// ---------- boot ----------
+async function boot() {
+  await DB.open();
+  await seedIfNeeded();
+  $$('#tabbar .tab').forEach(b => b.addEventListener('click', () => go(b.dataset.screen)));
+  $('#langBtn').addEventListener('click', () => switchLang(LANG === 'th' ? 'en' : 'th'));
+  $('#settingsBtn').addEventListener('click', () => go('settings'));
+  await rerender('home');
+}
+boot();

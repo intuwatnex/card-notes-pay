@@ -1,0 +1,103 @@
+/* Bilingual strings TH / EN */
+const I18N = {
+  th: {
+    'nav.home': 'สรุป', 'nav.pay': 'จ่าย', 'nav.spend': 'บันทึก',
+    'nav.installments': 'ผ่อน', 'nav.cards': 'บัตร',
+    'title.home': 'สรุป', 'title.pay': 'จ่ายบัตร', 'title.spend': 'บันทึกการใช้จ่าย',
+    'title.installments': 'แผนผ่อนชำระ', 'title.cards': 'บัตรของฉัน', 'title.settings': 'ตั้งค่า',
+
+    'home.income': 'รายรับเดือนนี้', 'home.spending': 'ยอดใช้จ่าย', 'home.due': 'ต้องจ่าย',
+    'home.remaining': 'คงเหลือ', 'home.installmentLoad': 'ภาระผ่อน/เดือน',
+    'home.upcoming': 'ครบกำหนดเร็วๆ นี้', 'home.byCard': 'แยกตามบัตร', 'home.none': 'ไม่มีรายการ',
+    'home.setIncome': 'ตั้งรายรับ',
+
+    'pay.month': 'เดือน', 'pay.due': 'ครบกำหนด', 'pay.stmt': 'วันสรุปยอด',
+    'pay.amount': 'ยอด', 'pay.paid': 'จ่ายแล้ว', 'pay.topay': 'ยังไม่จ่าย',
+    'pay.markPaid': 'ทำเครื่องหมายว่าจ่าย', 'pay.showQR': 'แสดง QR', 'pay.scanToPay': 'สแกนเพื่อจ่าย',
+    'pay.noQR': 'ยังไม่มี QR สำหรับบัตรนี้', 'pay.totalDue': 'รวมต้องจ่าย', 'pay.day': 'วันที่',
+
+    'spend.card': 'บัตร', 'spend.month': 'เดือน', 'spend.amount': 'จำนวนเงิน',
+    'spend.note': 'โน้ต', 'spend.save': 'บันทึก', 'spend.history': 'ประวัติ',
+    'spend.selectCard': 'เลือกบัตร', 'spend.placeholderNote': 'เช่น ค่าน้ำมัน, ช้อปปี้...',
+    'spend.saved': 'บันทึกแล้ว', 'spend.thisMonth': 'รายการเดือนนี้',
+
+    'inst.add': 'เพิ่มแผนผ่อน', 'inst.bank': 'ธนาคาร/บัตร', 'inst.detail': 'รายละเอียด',
+    'inst.start': 'วันเริ่ม', 'inst.principal': 'ยอดเต็ม', 'inst.months': 'จำนวนงวด',
+    'inst.rate': 'ดอกเบี้ย (%)', 'inst.permonth': 'ผ่อน/เดือน', 'inst.paid': 'จ่ายแล้ว',
+    'inst.left': 'เหลือ', 'inst.remaining': 'ยอดคงเหลือ', 'inst.end': 'งวดสุดท้าย',
+    'inst.total': 'รวมทั้งหมด', 'inst.next': 'งวดถัดไป', 'inst.done': 'ผ่อนครบแล้ว',
+    'inst.monthsUnit': 'งวด', 'inst.totalMonthlyLoad': 'รวมผ่อนต่อเดือน', 'inst.totalRemaining': 'ยอดคงเหลือรวม',
+    'inst.zeroPct': '0% ไม่มีดอกเบี้ย', 'inst.autoNote': 'งวดอัปเดตอัตโนมัติตามวันที่',
+
+    'cards.add': 'เพิ่มบัตร', 'cards.name': 'ชื่อบัตร', 'cards.bank': 'ธนาคาร',
+    'cards.stmt': 'วันสรุปยอด', 'cards.due': 'วันครบกำหนด', 'cards.qr': 'QR พร้อมเพย์ (รูป)',
+    'cards.uploadQR': 'อัปโหลดรูป QR', 'cards.changeQR': 'เปลี่ยน QR', 'cards.removeQR': 'ลบ QR',
+    'cards.dayOfMonth': 'วันที่ (1-31)', 'cards.spendingHistory': 'ประวัติการใช้จ่าย',
+
+    'settings.lang': 'ภาษา', 'settings.backup': 'สำรองข้อมูล',
+    'settings.export': 'สำรอง (.json)', 'settings.import': 'นำเข้า (.json)',
+    'settings.exportXlsx': 'ส่งออก Excel (.xlsx)',
+    'settings.exportXlsxDesc': 'ดาวน์โหลดไฟล์ Excel เก็บในเครื่อง (เปิดด้วย Excel/Numbers/Google ชีต)',
+    'settings.exportDesc': 'สำรองไฟล์ข้อมูล (.json) สำหรับนำกลับเข้าแอป',
+    'settings.danger': 'ลบข้อมูลทั้งหมด', 'settings.dangerDesc': 'ล้างทุกอย่างในเครื่องนี้',
+    'settings.reseed': 'โหลดข้อมูลตัวอย่างใหม่', 'settings.about': 'เกี่ยวกับ',
+    'settings.aboutText': 'แอปบันทึกบัตรเครดิตและผ่อนชำระ • เก็บข้อมูลในเครื่อง (ออฟไลน์)',
+
+    'common.save': 'บันทึก', 'common.cancel': 'ยกเลิก', 'common.delete': 'ลบ',
+    'common.edit': 'แก้ไข', 'common.close': 'ปิด', 'common.confirm': 'ยืนยัน',
+    'common.required': 'จำเป็น', 'common.baht': '฿', 'common.deleted': 'ลบแล้ว',
+    'common.confirmDelete': 'ยืนยันการลบ?', 'common.add': 'เพิ่ม', 'common.optional': 'ไม่บังคับ',
+  },
+  en: {
+    'nav.home': 'Home', 'nav.pay': 'Pay', 'nav.spend': 'Add',
+    'nav.installments': 'Plans', 'nav.cards': 'Cards',
+    'title.home': 'Overview', 'title.pay': 'Pay Cards', 'title.spend': 'Add Spending',
+    'title.installments': 'Installment Plans', 'title.cards': 'My Cards', 'title.settings': 'Settings',
+
+    'home.income': 'Income this month', 'home.spending': 'Spending', 'home.due': 'To pay',
+    'home.remaining': 'Remaining', 'home.installmentLoad': 'Installments/mo',
+    'home.upcoming': 'Upcoming due', 'home.byCard': 'By card', 'home.none': 'No items',
+    'home.setIncome': 'Set income',
+
+    'pay.month': 'Month', 'pay.due': 'Due', 'pay.stmt': 'Statement',
+    'pay.amount': 'Amount', 'pay.paid': 'Paid', 'pay.topay': 'Unpaid',
+    'pay.markPaid': 'Mark as paid', 'pay.showQR': 'Show QR', 'pay.scanToPay': 'Scan to pay',
+    'pay.noQR': 'No QR saved for this card', 'pay.totalDue': 'Total to pay', 'pay.day': 'Day',
+
+    'spend.card': 'Card', 'spend.month': 'Month', 'spend.amount': 'Amount',
+    'spend.note': 'Note', 'spend.save': 'Save', 'spend.history': 'History',
+    'spend.selectCard': 'Select card', 'spend.placeholderNote': 'e.g. fuel, Shopee...',
+    'spend.saved': 'Saved', 'spend.thisMonth': "This month's entries",
+
+    'inst.add': 'Add plan', 'inst.bank': 'Bank/Card', 'inst.detail': 'Detail',
+    'inst.start': 'Start date', 'inst.principal': 'Total amount', 'inst.months': 'Months',
+    'inst.rate': 'Interest (%)', 'inst.permonth': 'Per month', 'inst.paid': 'Paid',
+    'inst.left': 'Left', 'inst.remaining': 'Remaining', 'inst.end': 'Last payment',
+    'inst.total': 'Total payable', 'inst.next': 'Next due', 'inst.done': 'Completed',
+    'inst.monthsUnit': 'mo', 'inst.totalMonthlyLoad': 'Total monthly', 'inst.totalRemaining': 'Total remaining',
+    'inst.zeroPct': '0% interest free', 'inst.autoNote': 'Months auto-update by date',
+
+    'cards.add': 'Add card', 'cards.name': 'Card name', 'cards.bank': 'Bank',
+    'cards.stmt': 'Statement day', 'cards.due': 'Due day', 'cards.qr': 'PromptPay QR (image)',
+    'cards.uploadQR': 'Upload QR image', 'cards.changeQR': 'Change QR', 'cards.removeQR': 'Remove QR',
+    'cards.dayOfMonth': 'Day (1-31)', 'cards.spendingHistory': 'Spending history',
+
+    'settings.lang': 'Language', 'settings.backup': 'Backup',
+    'settings.export': 'Backup (.json)', 'settings.import': 'Import (.json)',
+    'settings.exportXlsx': 'Export Excel (.xlsx)',
+    'settings.exportXlsxDesc': 'Download an Excel file to keep on this device (opens in Excel / Numbers / Google Sheets).',
+    'settings.exportDesc': 'Back up data as a (.json) file you can re-import into the app.',
+    'settings.danger': 'Delete all data', 'settings.dangerDesc': 'Wipe everything on this device',
+    'settings.reseed': 'Reload sample data', 'settings.about': 'About',
+    'settings.aboutText': 'Credit card spending & installment tracker • data stored on-device (offline)',
+
+    'common.save': 'Save', 'common.cancel': 'Cancel', 'common.delete': 'Delete',
+    'common.edit': 'Edit', 'common.close': 'Close', 'common.confirm': 'Confirm',
+    'common.required': 'Required', 'common.baht': '฿', 'common.deleted': 'Deleted',
+    'common.confirmDelete': 'Confirm delete?', 'common.add': 'Add', 'common.optional': 'optional',
+  }
+};
+
+let LANG = localStorage.getItem('lang') || 'th';
+function t(key) { return (I18N[LANG] && I18N[LANG][key]) || (I18N.en[key]) || key; }
+function setLang(l) { LANG = l; localStorage.setItem('lang', l); }
