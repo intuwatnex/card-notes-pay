@@ -7,7 +7,11 @@ A mobile **PWA** (installable web app) for tracking credit-card spending, paying
 - **Hosted free on GitHub Pages.**
 - **Bilingual** — Thai / English (toggle in the header).
 
-Built from the structure of `installment plan as of jan 2021.xlsx` (sheets **Paid (CARD)** and **Installment**), and pre-seeded with that data on first run.
+**▶ Live app: https://intuwatnex.github.io/card-notes-pay/** — open on your phone and *Add to Home Screen*.
+
+> The public app ships with **sample data only** (no personal information). Load your real data with **Settings → Import** and a JSON backup file.
+
+Built from the structure of `installment plan as of jan 2021.xlsx` (sheets **Paid (CARD)** and **Installment**).
 
 ---
 
