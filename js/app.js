@@ -86,9 +86,13 @@ async function seedIfNeeded() {
     const id = await DB.cards.save({ name: c.name, bank: c.name, stmtDate: c.stmtDate || null, dueDate: c.dueDate || null, qr: null, color: cardColor(idx++) });
     nameToId[c.name] = id;
   }
+  // History up to and including May 2026 is already paid; current month onward is not.
+  const PAID_THROUGH = '2026-05';
   for (const s of (S.spending || [])) {
     const cid = nameToId[s.card];
-    if (cid) await DB.spending.save({ cardId: cid, month: s.month, amount: s.amount, note: '', paid: false });
+    if (!cid) continue;
+    const paid = s.month <= PAID_THROUGH;
+    await DB.spending.save({ cardId: cid, month: s.month, amount: s.amount, note: '', paid, paidDate: paid ? `${s.month}-28T00:00:00.000Z` : null });
   }
   for (const inc of (S.income || [])) await DB.income.save(inc.month, inc.amount);
   for (const it of (S.installments || [])) {
@@ -651,10 +655,26 @@ function applyStaticI18n() {
 }
 async function switchLang(l) { setLang(l); await rerender(); }
 
+// One-time data migrations for installs that were seeded before a rule changed.
+async function runMigrations() {
+  const m = await DB.meta.get('paidThrough2026-05');
+  if (m && m.value) return;
+  const all = await DB.spending.all();
+  for (const s of all) {
+    if (s.month <= '2026-05' && !s.paid) {
+      s.paid = true;
+      s.paidDate = s.paidDate || `${s.month}-28T00:00:00.000Z`;
+      await DB.spending.save(s);
+    }
+  }
+  await DB.meta.set('paidThrough2026-05', true);
+}
+
 // ---------- boot ----------
 async function boot() {
   await DB.open();
   await seedIfNeeded();
+  await runMigrations();
   $$('#tabbar .tab').forEach(b => b.addEventListener('click', () => go(b.dataset.screen)));
   $('#langBtn').addEventListener('click', () => switchLang(LANG === 'th' ? 'en' : 'th'));
   $('#settingsBtn').addEventListener('click', () => go('settings'));
