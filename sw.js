@@ -1,5 +1,5 @@
 /* Service worker — offline cache (app shell). Bump CACHE to force update. */
-const CACHE = 'cardpay-v4';
+const CACHE = 'cardpay-v5';
 const ASSETS = [
   './',
   './index.html',

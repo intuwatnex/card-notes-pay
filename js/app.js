@@ -213,15 +213,54 @@ Screens.pay = async () => {
   return wrap;
 };
 
-// Sync = pull the latest data file produced by the Gmail fetch script.
-function triggerSync() {
-  const fileIn = h('input', { type: 'file', accept: 'application/json', style: 'display:none', onchange: (e) => { closeModal(); importData(e); } });
+// Sync: if the local sync server is reachable, read Gmail live (one tap);
+// otherwise fall back to importing the JSON file by hand.
+function fetchTimeout(url, ms, opts = {}) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(id));
+}
+
+async function triggerSync() {
+  let server = false;
+  try { server = (await fetchTimeout('api/ping', 1500)).ok; } catch (_) {}
+  if (server) return autoSync();
+  showSyncSheet();
+}
+
+async function autoSync() {
   openModal(t('sync.title'), [
-    h('div', { class: 'muted small mb' }, t('sync.desc')),
+    h('div', { class: 'sync-loading' }, [h('div', { class: 'spinner' }), h('div', { class: 'muted' }, t('sync.reading'))]),
+  ]);
+  try {
+    const resp = await fetchTimeout('api/sync', 190000, { method: 'POST' });
+    const data = await resp.json();
+    if (!resp.ok || data.ok === false) throw new Error((data && data.error) || 'sync failed');
+    await DB.importAll(data);
+    await rerender('home');
+    closeModal();
+    const months = (data.spending || []).map(s => s.month).filter(Boolean).sort();
+    toast('✓ ' + (months.length ? ymLabel(months[months.length - 1]) : '✓'));
+  } catch (e) {
+    openModal(t('sync.title'), [
+      h('div', { class: 'muted small mb' }, '⚠ ' + (e.message || e)),
+      h('div', { class: 'muted small mb' }, t('sync.errHint')),
+      ...syncButtons(),
+    ]);
+  }
+}
+
+function syncButtons() {
+  const fileIn = h('input', { type: 'file', accept: 'application/json', style: 'display:none', onchange: (e) => { closeModal(); importData(e); } });
+  return [
     h('button', { class: 'btn primary block', onclick: () => fileIn.click() }, '⬆ ' + t('sync.import')),
     h('button', { class: 'btn block', style: 'margin-top:10px', onclick: () => { closeModal(); exportData(); } }, '⬇ ' + t('sync.export')),
     fileIn,
-  ]);
+  ];
+}
+
+function showSyncSheet() {
+  openModal(t('sync.title'), [h('div', { class: 'muted small mb' }, t('sync.desc')), ...syncButtons()]);
 }
 
 Screens.installments = async () => {
