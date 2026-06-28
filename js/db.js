@@ -1,7 +1,7 @@
 /* IndexedDB wrapper — on-device free storage */
 const DB = (() => {
   const NAME = 'cardNotesPay';
-  const VERSION = 1;
+  const VERSION = 2;
   let _db = null;
 
   function open() {
@@ -19,6 +19,11 @@ const DB = (() => {
         }
         if (!db.objectStoreNames.contains('income'))
           db.createObjectStore('income', { keyPath: 'month' });
+        if (!db.objectStoreNames.contains('transactions')) {
+          const tx = db.createObjectStore('transactions', { keyPath: 'id', autoIncrement: true });
+          tx.createIndex('byCardMonth', ['cardId', 'month']);
+          tx.createIndex('byCard', 'cardId');
+        }
         if (!db.objectStoreNames.contains('installments'))
           db.createObjectStore('installments', { keyPath: 'id', autoIncrement: true });
         if (!db.objectStoreNames.contains('meta'))
@@ -64,6 +69,10 @@ const DB = (() => {
     save: (i) => i.id ? put('installments', i) : add('installments', i),
     remove: (id) => del('installments', id),
   };
+  const transactions = {
+    all: () => getAll('transactions'),
+    forCard: async (cardId) => (await getAll('transactions')).filter(t => t.cardId === cardId),
+  };
   const meta = {
     get: (k) => get('meta', k),
     set: (k, v) => put('meta', { key: k, value: v }),
@@ -74,23 +83,24 @@ const DB = (() => {
       _app: 'CardNotesPay', _version: VERSION, _exportedAt: new Date().toISOString(),
       cards: await getAll('cards'),
       spending: await getAll('spending'),
+      transactions: await getAll('transactions'),
       income: await getAll('income'),
       installments: await getAll('installments'),
       meta: await getAll('meta'),
     };
   }
 
+  const STORES = ['cards', 'spending', 'transactions', 'income', 'installments', 'meta'];
   async function importAll(data) {
-    for (const store of ['cards', 'spending', 'income', 'installments', 'meta']) {
+    for (const store of STORES) {
       await clear(store);
       for (const row of (data[store] || [])) await put(store, row);
     }
   }
 
   async function wipe() {
-    for (const store of ['cards', 'spending', 'income', 'installments', 'meta'])
-      await clear(store);
+    for (const store of STORES) await clear(store);
   }
 
-  return { open, cards, spending, income, installments, meta, exportAll, importAll, wipe, getAll, clear };
+  return { open, cards, spending, transactions, income, installments, meta, exportAll, importAll, wipe, getAll, clear };
 })();

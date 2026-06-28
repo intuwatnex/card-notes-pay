@@ -205,6 +205,20 @@ select.input{appearance:none;-webkit-appearance:none}
 .pv-row{display:flex;justify-content:space-between;font-size:13.5px;color:var(--muted)}
 .pv-row strong{color:var(--text)}
 
+/* card detail / transactions */
+.detail-bar{display:flex;justify-content:space-between;align-items:center}
+.chev{color:var(--muted2);font-size:22px;font-weight:700;margin-left:2px}
+.tx-month{display:flex;justify-content:space-between;align-items:center;
+  margin-top:14px;padding:6px 4px;font-size:13px;font-weight:700;color:var(--muted);
+  border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:1}
+.tx-month strong{color:var(--text);font-size:15px}
+.tx-empty{padding:8px 4px}
+.tx-row{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line)}
+.tx-date{width:42px;font-size:12px;color:var(--muted2);flex:0 0 auto}
+.tx-desc{flex:1;min-width:0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx-amt{font-weight:700;font-size:14px;white-space:nowrap}
+.tx-amt.credit{color:var(--ok)}
+
 /* toast */
 .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:60;
   background:var(--text);color:var(--bg);padding:10px 18px;border-radius:999px;

@@ -1,8 +1,13 @@
 /* Bilingual strings TH / EN */
 const I18N = {
   th: {
-    'nav.home': 'สรุป', 'nav.pay': 'จ่าย', 'nav.spend': 'บันทึก',
+    'nav.home': 'สรุป', 'nav.pay': 'จ่าย', 'nav.sync': 'ซิงค์',
     'nav.installments': 'ผ่อน', 'nav.cards': 'บัตร',
+    'sync.title': 'ซิงค์ข้อมูล', 'sync.import': 'นำเข้าข้อมูลล่าสุด (.json)',
+    'sync.export': 'สำรองข้อมูล (.json)',
+    'sync.desc': 'นำเข้าไฟล์ cardpay-mydata.json ล่าสุดที่ดึงจาก Gmail (จะแทนที่ข้อมูลเดิมทั้งหมด)',
+    'tx.title': 'รายการ', 'tx.none': 'ไม่มีรายการ', 'tx.count': 'รายการ',
+    'card.statement': 'ยอดเรียกเก็บ', 'card.viewTx': 'ดูรายการทั้งหมด',
     'title.home': 'สรุป', 'title.pay': 'จ่ายบัตร', 'title.spend': 'บันทึกการใช้จ่าย',
     'title.installments': 'แผนผ่อนชำระ', 'title.cards': 'บัตรของฉัน', 'title.settings': 'ตั้งค่า',
 
@@ -49,8 +54,13 @@ const I18N = {
     'common.confirmDelete': 'ยืนยันการลบ?', 'common.add': 'เพิ่ม', 'common.optional': 'ไม่บังคับ',
   },
   en: {
-    'nav.home': 'Home', 'nav.pay': 'Pay', 'nav.spend': 'Add',
+    'nav.home': 'Home', 'nav.pay': 'Pay', 'nav.sync': 'Sync',
     'nav.installments': 'Plans', 'nav.cards': 'Cards',
+    'sync.title': 'Sync data', 'sync.import': 'Import latest (.json)',
+    'sync.export': 'Backup (.json)',
+    'sync.desc': 'Import the latest cardpay-mydata.json fetched from Gmail (replaces all current data).',
+    'tx.title': 'Transactions', 'tx.none': 'No transactions', 'tx.count': 'items',
+    'card.statement': 'Statement', 'card.viewTx': 'View all transactions',
     'title.home': 'Overview', 'title.pay': 'Pay Cards', 'title.spend': 'Add Spending',
     'title.installments': 'Installment Plans', 'title.cards': 'My Cards', 'title.settings': 'Settings',
 

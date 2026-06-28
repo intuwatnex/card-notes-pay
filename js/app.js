@@ -65,12 +65,13 @@ function computeInstallment(it, today = new Date()) {
 }
 
 // ---------- state ----------
-const State = { screen: 'home', month: todayYM(), cards: [], spending: [], installments: [] };
+const State = { screen: 'home', month: todayYM(), detailCardId: null, cards: [], spending: [], installments: [], transactions: [] };
 
 async function refresh() {
   State.cards = await DB.cards.all();
   State.spending = await DB.spending.all();
   State.installments = await DB.installments.all();
+  State.transactions = await DB.transactions.all();
 }
 const cardById = (id) => State.cards.find(c => c.id === id);
 const cardColor = (i) => ['#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316', '#3b82f6'][i % 10];
@@ -212,55 +213,16 @@ Screens.pay = async () => {
   return wrap;
 };
 
-Screens.spend = async () => {
-  const wrap = h('div', { class: 'screen' });
-  const form = h('div', { class: 'form-card' });
-  const cardSel = h('select', { class: 'input' }, [
-    h('option', { value: '' }, t('spend.selectCard')),
-    ...State.cards.map(c => h('option', { value: c.id }, c.name)),
+// Sync = pull the latest data file produced by the Gmail fetch script.
+function triggerSync() {
+  const fileIn = h('input', { type: 'file', accept: 'application/json', style: 'display:none', onchange: (e) => { closeModal(); importData(e); } });
+  openModal(t('sync.title'), [
+    h('div', { class: 'muted small mb' }, t('sync.desc')),
+    h('button', { class: 'btn primary block', onclick: () => fileIn.click() }, '⬆ ' + t('sync.import')),
+    h('button', { class: 'btn block', style: 'margin-top:10px', onclick: () => { closeModal(); exportData(); } }, '⬇ ' + t('sync.export')),
+    fileIn,
   ]);
-  const monthInput = h('input', { class: 'input', type: 'month', value: State.month });
-  const amtInput = h('input', { class: 'input', type: 'number', inputmode: 'decimal', step: '0.01', placeholder: '0.00' });
-  const noteInput = h('input', { class: 'input', type: 'text', placeholder: t('spend.placeholderNote') });
-
-  form.append(
-    field(t('spend.card'), cardSel),
-    field(t('spend.month'), monthInput),
-    field(t('spend.amount') + ' (฿)', amtInput),
-    field(t('spend.note'), noteInput),
-    h('button', {
-      class: 'btn primary block', onclick: async () => {
-        const cardId = Number(cardSel.value);
-        const amount = parseFloat(amtInput.value);
-        if (!cardId || !(amount >= 0) || !amtInput.value) { toast(t('common.required')); return; }
-        await DB.spending.save({ cardId, month: monthInput.value, amount, note: noteInput.value.trim(), paid: false });
-        amtInput.value = ''; noteInput.value = '';
-        toast(t('spend.saved'));
-        State.month = monthInput.value;
-        await rerender();
-      }
-    }, '＋ ' + t('spend.save')),
-  );
-  wrap.append(form);
-
-  // this month entries
-  wrap.append(sectionTitle(t('spend.thisMonth') + ' · ' + ymLabel(State.month)));
-  const list = State.spending.filter(s => s.month === State.month).sort((a, b) => b.id - a.id);
-  if (!list.length) wrap.append(emptyNote(t('home.none')));
-  list.forEach(s => {
-    const c = cardById(s.cardId) || { name: '?', color: '#888' };
-    wrap.append(h('div', { class: 'row card-row' }, [
-      cardDot(c),
-      h('div', { class: 'row-main' }, [
-        h('div', { class: 'row-title' }, c.name),
-        h('div', { class: 'row-sub' }, s.note || ''),
-      ]),
-      h('div', { class: 'row-amt' }, money(s.amount)),
-      iconBtn('🗑', async () => { if (confirm(t('common.confirmDelete'))) { await DB.spending.remove(s.id); await rerender(); } }),
-    ]));
-  });
-  return wrap;
-};
+}
 
 Screens.installments = async () => {
   const wrap = h('div', { class: 'screen' });
@@ -306,8 +268,8 @@ Screens.cards = async () => {
   wrap.append(h('button', { class: 'btn primary block', onclick: () => editCard() }, '＋ ' + t('cards.add')));
   if (!State.cards.length) wrap.append(emptyNote(t('home.none')));
   State.cards.forEach(c => {
-    const total = State.spending.filter(s => s.cardId === c.id).reduce((a, s) => a + s.amount, 0);
-    wrap.append(h('div', { class: 'row card-row', onclick: () => editCard(c) }, [
+    const txCount = State.transactions.filter(t => t.cardId === c.id).length;
+    wrap.append(h('div', { class: 'row card-row', onclick: () => openCardDetail(c.id) }, [
       cardDot(c, true),
       h('div', { class: 'row-main' }, [
         h('div', { class: 'row-title' }, c.name),
@@ -315,13 +277,68 @@ Screens.cards = async () => {
           c.dueDate ? `${t('cards.due')} ${c.dueDate}` : '',
           c.stmtDate ? ` · ${t('cards.stmt')} ${c.stmtDate}` : '',
           c.qr ? ' · 📷 QR' : '',
+          txCount ? ` · ${txCount} ${t('tx.count')}` : '',
         ].join('')),
       ]),
-      h('div', { class: 'row-amt' }, money(total)),
+      iconBtn('✎', () => editCard(c)),
+      h('span', { class: 'chev' }, '›'),
     ]));
   });
   return wrap;
 };
+
+function openCardDetail(id) { State.detailCardId = id; go('cardDetail'); }
+
+Screens.cardDetail = async () => {
+  const wrap = h('div', { class: 'screen' });
+  const c = cardById(State.detailCardId);
+  if (!c) { wrap.append(emptyNote('—')); return wrap; }
+  wrap.append(h('div', { class: 'detail-bar' }, [
+    h('button', { class: 'btn small ghost', onclick: () => go('cards') }, '‹ ' + t('nav.cards')),
+    h('button', { class: 'btn small', onclick: () => editCard(c) }, '✎ ' + t('common.edit')),
+  ]));
+  wrap.append(h('div', { class: 'row' }, [
+    cardDot(c, true),
+    h('div', { class: 'row-main' }, [
+      h('div', { class: 'row-title' }, c.name),
+      h('div', { class: 'row-sub' }, [
+        c.dueDate ? `${t('cards.due')} ${c.dueDate}` : '',
+        c.stmtDate ? ` · ${t('cards.stmt')} ${c.stmtDate}` : '',
+      ].join('')),
+    ]),
+    c.qr ? h('button', { class: 'btn small ghost', onclick: () => showQR(c) }, '📷') : null,
+  ]));
+
+  const txs = State.transactions.filter(x => x.cardId === c.id);
+  const months = [...new Set([
+    ...txs.map(x => x.month),
+    ...State.spending.filter(s => s.cardId === c.id).map(s => s.month),
+  ])].filter(Boolean).sort().reverse();
+  if (!months.length) { wrap.append(emptyNote(t('tx.none'))); return wrap; }
+
+  for (const m of months) {
+    const sp = State.spending.find(s => s.cardId === c.id && s.month === m);
+    const mtx = txs.filter(x => x.month === m).sort((a, b) => txDateKey(b) - txDateKey(a));
+    wrap.append(h('div', { class: 'tx-month' }, [
+      h('span', {}, ymLabel(m)),
+      sp ? h('strong', {}, money(sp.amount)) : h('span', {}, ''),
+    ]));
+    if (!mtx.length) wrap.append(h('div', { class: 'muted small tx-empty' }, t('tx.none')));
+    mtx.forEach(x => {
+      const credit = x.amount < 0;
+      wrap.append(h('div', { class: 'tx-row' }, [
+        h('div', { class: 'tx-date' }, (x.date || '').slice(0, 5)),
+        h('div', { class: 'tx-desc' }, x.desc || ''),
+        h('div', { class: 'tx-amt' + (credit ? ' credit' : '') }, (credit ? '+' : '') + money(Math.abs(x.amount))),
+      ]));
+    });
+  }
+  return wrap;
+};
+function txDateKey(x) {
+  const m = (x.date || '').match(/(\d{2})\/(\d{2})/);
+  return m ? Number(m[2]) * 100 + Number(m[1]) : 0;
+}
 
 Screens.settings = async () => {
   const wrap = h('div', { class: 'screen' });
@@ -641,7 +658,9 @@ async function rerender(screen) {
   if (screen) State.screen = screen;
   await refresh();
   applyStaticI18n();
-  $('#screenTitle').textContent = t('title.' + State.screen);
+  $('#screenTitle').textContent = State.screen === 'cardDetail'
+    ? (cardById(State.detailCardId)?.name || t('tx.title'))
+    : t('title.' + State.screen);
   $$('#tabbar .tab').forEach(b => b.classList.toggle('active', b.dataset.screen === State.screen));
   view.innerHTML = '';
   const el = await (Screens[State.screen] || Screens.home)();
@@ -675,7 +694,10 @@ async function boot() {
   await DB.open();
   await seedIfNeeded();
   await runMigrations();
-  $$('#tabbar .tab').forEach(b => b.addEventListener('click', () => go(b.dataset.screen)));
+  $$('#tabbar .tab').forEach(b => b.addEventListener('click', () => {
+    if (b.id === 'syncTab') return triggerSync();
+    go(b.dataset.screen);
+  }));
   $('#langBtn').addEventListener('click', () => switchLang(LANG === 'th' ? 'en' : 'th'));
   $('#settingsBtn').addEventListener('click', () => go('settings'));
   await rerender('home');

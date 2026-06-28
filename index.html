@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/styles.css?v=4" />
 </head>
 <body>
   <header class="app-header">
@@ -27,7 +27,7 @@
   <nav class="tabbar" id="tabbar">
     <button class="tab active" data-screen="home"><span class="ti">🏠</span><span data-i18n="nav.home">สรุป</span></button>
     <button class="tab" data-screen="pay"><span class="ti">💸</span><span data-i18n="nav.pay">จ่าย</span></button>
-    <button class="tab tab-add" data-screen="spend"><span class="ti">＋</span><span data-i18n="nav.spend">บันทึก</span></button>
+    <button class="tab tab-add" id="syncTab"><span class="ti">🔄</span><span data-i18n="nav.sync">ซิงค์</span></button>
     <button class="tab" data-screen="installments"><span class="ti">📆</span><span data-i18n="nav.installments">ผ่อน</span></button>
     <button class="tab" data-screen="cards"><span class="ti">🗂️</span><span data-i18n="nav.cards">บัตร</span></button>
   </nav>
@@ -36,11 +36,11 @@
   <div id="modalHost" class="modal-host hidden"></div>
   <div id="toast" class="toast hidden"></div>
 
-  <script src="js/seed.js"></script>
-  <script src="js/i18n.js"></script>
-  <script src="js/db.js"></script>
-  <script src="js/xlsx.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/seed.js?v=4"></script>
+  <script src="js/i18n.js?v=4"></script>
+  <script src="js/db.js?v=4"></script>
+  <script src="js/xlsx.js?v=4"></script>
+  <script src="js/app.js?v=4"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
