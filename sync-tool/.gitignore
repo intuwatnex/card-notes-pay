@@ -1,0 +1,10 @@
+# Secrets & personal data — NEVER commit
+credentials.json
+token.json
+config.json
+statements/
+*.pdf
+*.PDF
+*backup*.json
+cardpay-mydata.json
+__pycache__/
