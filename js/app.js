@@ -74,7 +74,7 @@ function computeInstallment(it, today = new Date()) {
 }
 
 // ---------- state ----------
-const State = { screen: 'home', month: todayYM(), detailCardId: null, cards: [], spending: [], installments: [], transactions: [] };
+const State = { screen: 'home', month: todayYM(), detailCardId: null, scrollToCardId: null, cards: [], spending: [], installments: [], transactions: [] };
 
 async function refresh() {
   State.cards = await DB.cards.all();
@@ -162,7 +162,7 @@ Screens.home = async () => {
   wrap.append(sectionTitle(t('home.upcoming')));
   if (!upcoming.length) wrap.append(emptyNote(t('home.none')));
   upcoming.forEach(({ c, sp }) => {
-    wrap.append(h('div', { class: 'row card-row', onclick: () => go('pay') }, [
+    wrap.append(h('div', { class: 'row card-row', onclick: () => { State.scrollToCardId = c.id; go('pay'); } }, [
       cardDot(c),
       h('div', { class: 'row-main' }, [
         h('div', { class: 'row-title' }, c.name),
@@ -213,7 +213,7 @@ Screens.pay = async () => {
   cardsWithSpend.forEach(({ c, sp }) => {
     const paid = sp.paid;
     const txCount = State.transactions.filter(x => x.cardId === c.id && x.month === month).length;
-    const card = h('div', { class: 'pay-card' + (paid ? ' is-paid' : '') }, [
+    const card = h('div', { class: 'pay-card' + (paid ? ' is-paid' : ''), 'data-card-id': c.id }, [
       h('div', { class: 'pay-head' }, [
         cardDot(c),
         h('div', { class: 'row-main' }, [
@@ -872,7 +872,13 @@ async function rerender(screen) {
   view.innerHTML = '';
   const el = await (Screens[State.screen] || Screens.home)();
   view.append(el);
-  view.scrollTop = 0;
+  if (State.scrollToCardId && State.screen === 'pay') {
+    const target = view.querySelector(`[data-card-id="${State.scrollToCardId}"]`);
+    if (target) { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); target.classList.add('highlight'); setTimeout(() => target.classList.remove('highlight'), 1500); }
+    State.scrollToCardId = null;
+  } else {
+    view.scrollTop = 0;
+  }
 }
 function applyStaticI18n() {
   $$('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
