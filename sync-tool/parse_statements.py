@@ -35,6 +35,31 @@ def derive_passwords(dob):
 def clean(t): return (t or "").replace("ำา", "ำ")
 def num(s): return round(float(s.replace(",", "")), 2)
 
+try:
+    import fitz  # PyMuPDF — decodes Krungsri/Central Thai fonts that pypdf garbles
+except ImportError:
+    fitz = None
+
+
+def fix_thai(s):
+    """Krungsri/Central fonts encode า as ำ, and real ำ as a doubled ำำ/ำา.
+    Reverse it: collapse doubles back to ำ, then turn lone ำ into า."""
+    return (s.replace("ำำ", "\x00").replace("ำา", "\x00")
+             .replace("ำ", "า").replace("\x00", "ำ"))
+
+
+DATE_RE = re.compile(r"^\d{2}/\d{2}/\d{2}$")
+AMT_RE = re.compile(r"^-?[\d,]+\.\d{2}$")
+
+
+def read_fitz_lines(path, pw):
+    if fitz is None:
+        return None
+    d = fitz.open(str(path))
+    if d.needs_pass and not d.authenticate(pw):
+        return None
+    return [ln.strip() for p in d for ln in p.get_text().splitlines()]
+
 
 def read_pdf(path, pw):
     r = PdfReader(str(path))
@@ -143,23 +168,42 @@ def p_ttb(txt, fn):
                  amount=num(g.group(1)) if g else None, tx=tx)]
 
 
-def _krungsri_like(txt, brand):
-    last4 = re.search(r"(\d{4}) \d{2}XX XXXX (\d{4})", txt)
+def p_krungsri_fitz(lines, brand):
+    """Krungsri/Central via PyMuPDF: each field is on its own line
+    ([transDate][postDate][description][amount]); Thai is normalized."""
+    text = "\n".join(lines)
+    last4 = re.search(r"(\d{4}) \d{2}XX XXXX (\d{4})", text)
     last4 = last4.group(2) if last4 else "????"
-    pay = re.search(r"Total Payment Due For Credit Card\s+([\d,]+\.\d{2})", txt)
-    tx = [mk_tx(d, ds, num(a)) for d, ds, a in TX_DDMMYY.findall(txt)
-          if not re.search(r"x16%|/365", ds)]
+
+    amount = None
+    for i, ln in enumerate(lines):
+        if ("Total Payment Due For Credit Card" in ln or ln.startswith("SUBTOTAL FOR")) \
+                and i + 1 < len(lines) and AMT_RE.match(lines[i + 1]):
+            amount = num(lines[i + 1]); break
+
+    dates = [ln for ln in lines if DATE_RE.match(ln)]
+    stmt = dates[0] if dates else ""
+    due = dates[1] if len(dates) > 1 else ""
+
+    tx, i = [], 0
+    while i < len(lines) - 3:
+        if (DATE_RE.match(lines[i]) and DATE_RE.match(lines[i + 1])
+                and not DATE_RE.match(lines[i + 2]) and not AMT_RE.match(lines[i + 2])
+                and AMT_RE.match(lines[i + 3])):
+            tx.append(mk_tx(lines[i], fix_thai(lines[i + 2]), num(lines[i + 3])))
+            i += 4
+        else:
+            i += 1
+
     inst = None
-    im = re.search(r"Installment Purchase\s+([\d,]+)\s*baht.*?=\s*([\d,]+)\s*baht/month", txt, re.S)
+    im = re.search(r"Installment Purchase\s+([\d,]+)\s*baht.*?=\s*([\d,]+)\s*baht/month", text, re.S)
     if im:
-        principal = num(im.group(1))
-        perm = num(im.group(2))
-        mm = re.search(r"for\s+(\d+)\s*months", txt)
-        months = int(mm.group(1)) if mm else max(1, round(principal / perm)) if perm else 1
+        principal, perm = num(im.group(1)), num(im.group(2))
+        mm = re.search(r"for\s+(\d+)\s*months", text)
+        months = int(mm.group(1)) if mm else (max(1, round(principal / perm)) if perm else 1)
         rate = round((perm * months / principal - 1) * 100, 2) if principal else 0
-        # installment period: a date-pair on one line >60 days apart (start … end)
         start = None
-        for d1, d2 in re.findall(r"(\d{2}/\d{2}/\d{2})\s+(\d{2}/\d{2}/\d{2})", txt):
+        for d1, d2 in re.findall(r"(\d{2}/\d{2}/\d{2})\s+(\d{2}/\d{2}/\d{2})", text):
             try:
                 a = datetime.strptime(d1, "%d/%m/%y"); b = datetime.strptime(d2, "%d/%m/%y")
                 if (b - a).days > 60:
@@ -168,17 +212,14 @@ def _krungsri_like(txt, brand):
                 pass
         inst = dict(principal=principal, perMonth=perm, totalMonths=months,
                     interestRate=rate, startDate=start)
-    # Krungsri/Central put no date in the filename, so read the statement's own
-    # closing + due dates (the first two dd/mm/yy in the header) to date the record.
-    hdr = re.findall(r"\b(\d{2}/\d{2}/\d{2})\b", txt)
-    stmt = hdr[0] if hdr else ""
-    due = hdr[1] if len(hdr) > 1 else ""
+
     return [dict(issuer="Krungsri", last4=last4, type=brand, stmt=stmt, due=due,
-                 amount=num(pay.group(1)) if pay else None, tx=tx, inst=inst)]
+                 amount=amount, tx=tx, inst=inst)]
 
 
-def p_krungsri(txt, fn): return _krungsri_like(txt, "")
-def p_central(txt, fn):  return _krungsri_like(txt, "Central The 1")
+# Placeholders so the router can name them; the loop handles Krungsri/Central via fitz.
+def p_krungsri(txt, fn): return []
+def p_central(txt, fn):  return []
 
 
 # ---------------- ttb installment receipt (car loan) ----------------
@@ -264,8 +305,13 @@ def main():
             r = parse_ttb_receipt(txt)
             if r: ttb_receipts.append(r)
             continue
+        if pwkey in ("krungsri", "central"):
+            lines = read_fitz_lines(f, PW[pwkey])
+            recs = p_krungsri_fitz(lines, "Central The 1" if pwkey == "central" else "") if lines else []
+        else:
+            recs = parser(txt, fn)
         fallback = ym_from_filename(fn) or email_month(att2date.get(fn))
-        for rec in parser(txt, fn):
+        for rec in recs:
             if rec["amount"] is None:
                 skipped.append(fn + " (no amount)"); continue
             # Prefer the statement's own closing date (most accurate); else filename/email.
@@ -309,7 +355,7 @@ NICKNAMES = {
     "8789": "KTC Master",
     "3317": "KTC JCB",
     "6287": "KTC UnionPay",
-    "7338": "Krungsri",
+    "7338": "Krungsri HomePro",
     "1289": "Central The 1",
 }
 
