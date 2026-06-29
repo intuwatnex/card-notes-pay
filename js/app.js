@@ -335,13 +335,16 @@ function showSyncSheet() {
 Screens.installments = async () => {
   const wrap = h('div', { class: 'screen' });
   const comps = State.installments.map(it => ({ it, c: computeInstallment(it) }));
-  const monthly = comps.filter(x => x.c.left > 0).reduce((a, x) => a + x.c.perMonth, 0);
-  const remaining = comps.reduce((a, x) => a + x.c.remaining, 0);
-  const ccRemaining = comps.filter(x => Number(x.it.totalMonths) < 36).reduce((a, x) => a + x.c.remaining, 0);
+  const isCC = x => Number(x.it.totalMonths) < 36;
+  const ccMonthly   = comps.filter(x => x.c.left > 0 && isCC(x)).reduce((a, x) => a + x.c.perMonth, 0);
+  const ccRemaining = comps.filter(x => isCC(x)).reduce((a, x) => a + x.c.remaining, 0);
+  const loanMonthly   = comps.filter(x => x.c.left > 0 && !isCC(x)).reduce((a, x) => a + x.c.perMonth, 0);
+  const loanRemaining = comps.filter(x => !isCC(x)).reduce((a, x) => a + x.c.remaining, 0);
   wrap.append(h('div', { class: 'stat-grid two' }, [
-    statCard(t('inst.totalMonthlyLoad'), money(monthly), 'inst'),
-    statCard(t('inst.totalRemaining'), money(remaining), 'due'),
-    statCard(t('inst.ccRemaining'), money(ccRemaining), 'inst', null, true),
+    statCard(t('inst.ccMonthly'),      money(ccMonthly),    'inst'),
+    statCard(t('inst.ccRemaining'),    money(ccRemaining),  'inst'),
+    statCard(t('inst.loanMonthly'),    money(loanMonthly),  'loan'),
+    statCard(t('inst.loanRemaining'),  money(loanRemaining),'due'),
   ]));
   wrap.append(h('button', { class: 'btn primary block', onclick: () => editInstallment() }, '＋ ' + t('inst.add')));
   wrap.append(h('div', { class: 'note-line' }, '⏱ ' + t('inst.autoNote')));
