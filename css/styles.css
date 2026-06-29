@@ -160,6 +160,7 @@ body{
 .prog{height:8px;background:var(--surface2);border-radius:6px;overflow:hidden}
 .prog-fill{height:100%;background:linear-gradient(90deg,var(--inst),var(--primary2));border-radius:6px}
 .inst-meta{display:flex;flex-wrap:wrap;gap:6px}
+.inst-notes{font-size:.82em;color:var(--muted);white-space:pre-wrap;line-height:1.4;padding-top:2px}
 
 /* forms */
 .form-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);

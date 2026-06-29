@@ -39,6 +39,7 @@ const I18N = {
     'inst.total': 'รวมทั้งหมด', 'inst.next': 'งวดถัดไป', 'inst.done': 'ผ่อนครบแล้ว',
     'inst.monthsUnit': 'งวด', 'inst.totalMonthlyLoad': 'รวมผ่อนต่อเดือน', 'inst.totalRemaining': 'ยอดคงเหลือรวม',
     'inst.zeroPct': '0% ไม่มีดอกเบี้ย', 'inst.autoNote': 'งวดอัปเดตอัตโนมัติตามวันที่',
+    'inst.notes': 'บันทึก', 'inst.notesPlaceholder': 'บันทึกรายละเอียดเพิ่มเติม…',
 
     'cards.add': 'เพิ่มบัตร', 'cards.name': 'ชื่อบัตร', 'cards.bank': 'ธนาคาร',
     'cards.stmt': 'วันสรุปยอด', 'cards.due': 'วันครบกำหนด', 'cards.qr': 'QR พร้อมเพย์ (รูป)',
@@ -103,6 +104,7 @@ const I18N = {
     'inst.total': 'Total payable', 'inst.next': 'Next due', 'inst.done': 'Completed',
     'inst.monthsUnit': 'mo', 'inst.totalMonthlyLoad': 'Total monthly', 'inst.totalRemaining': 'Total remaining',
     'inst.zeroPct': '0% interest free', 'inst.autoNote': 'Months auto-update by date',
+    'inst.notes': 'Notes', 'inst.notesPlaceholder': 'Add notes…',
 
     'cards.add': 'Add card', 'cards.name': 'Card name', 'cards.bank': 'Bank',
     'cards.stmt': 'Statement day', 'cards.due': 'Due day', 'cards.qr': 'PromptPay QR (image)',

@@ -92,16 +92,34 @@ const DB = (() => {
 
   const STORES = ['cards', 'spending', 'transactions', 'income', 'installments', 'meta'];
   async function importAll(data) {
-    const syncStores = ['cards', 'spending', 'transactions', 'installments', 'meta'];
-    for (const store of syncStores) {
+    // Cards, spending, transactions, meta: full replace
+    for (const store of ['cards', 'spending', 'transactions', 'meta']) {
       await clear(store);
       for (const row of (data[store] || [])) await put(store, row);
     }
-    // Only overwrite income if the import actually has income records
+    // Income: only overwrite if incoming data has records
     // (Mac sync always sends income:[] — preserve manually-entered income)
     if (data.income && data.income.length > 0) {
       await clear('income');
       for (const row of data.income) await put('income', row);
+    }
+    // Installments: replace but carry over user-entered notes by stable key
+    // (Mac sync never has notes — match by bank+detail+startDate+totalMonths)
+    {
+      const existing = await getAll('installments');
+      const notesByKey = {};
+      for (const inst of existing) {
+        if (inst.notes) {
+          const key = `${inst.bank}|${inst.detail}|${inst.startDate}|${inst.totalMonths}`;
+          notesByKey[key] = inst.notes;
+        }
+      }
+      await clear('installments');
+      for (const row of (data.installments || [])) {
+        const key = `${row.bank}|${row.detail}|${row.startDate}|${row.totalMonths}`;
+        if (notesByKey[key]) row.notes = notesByKey[key];
+        await put('installments', row);
+      }
     }
   }
 

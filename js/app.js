@@ -364,6 +364,7 @@ Screens.installments = async () => {
       Number(it.interestRate) ? chip(`${it.interestRate}%`) : chip(t('inst.zeroPct'), 'ok'),
       chip(`${t('inst.end')} ${fmtDate(c.endDate)}`),
     ]),
+    it.notes ? h('div', { class: 'inst-notes' }, it.notes) : null,
   ]);
 
   if (!activeComps.length) wrap.append(emptyNote(t('home.none')));
@@ -730,6 +731,8 @@ function editInstallment(it) {
   const months = h('select', { class: 'input' }, [3, 4, 6, 9, 10, 12, 18, 24, 36].map(m => h('option', { value: m, selected: Number(x.totalMonths) === m }, m + ' ' + t('inst.monthsUnit'))));
   const rate = h('input', { class: 'input', type: 'number', inputmode: 'decimal', step: '0.01', value: x.interestRate || 0, placeholder: '0' });
   const manual = h('input', { class: 'input', type: 'number', min: 0, value: x.manualPaid ?? '', placeholder: 'auto' });
+  const notes = h('textarea', { class: 'input', rows: 3, placeholder: t('inst.notesPlaceholder'), style: 'resize:none' });
+  notes.value = x.notes || '';
 
   const preview = h('div', { class: 'inst-preview' });
   function upd() {
@@ -752,6 +755,7 @@ function editInstallment(it) {
     field(t('inst.detail'), detail),
     h('div', { class: 'two-col' }, [field(t('inst.principal') + ' (฿)', principal), field(t('inst.rate'), rate)]),
     h('div', { class: 'two-col' }, [field(t('inst.start'), start), field(t('inst.paid') + ' (' + t('common.optional') + ')', manual)]),
+    field(t('inst.notes'), notes),
     preview,
   ];
   const foot = [
@@ -761,7 +765,8 @@ function editInstallment(it) {
       if (!bank.value.trim() || !principal.value) { toast(t('common.required')); return; }
       await DB.installments.save({ ...x, bank: bank.value.trim(), detail: detail.value.trim(),
         startDate: start.value, principal: parseFloat(principal.value), totalMonths: Number(months.value),
-        interestRate: parseFloat(rate.value) || 0, manualPaid: manual.value === '' ? null : Number(manual.value), perMonth: null });
+        interestRate: parseFloat(rate.value) || 0, manualPaid: manual.value === '' ? null : Number(manual.value),
+        perMonth: null, notes: notes.value.trim() || null });
       closeModal(); await rerender();
     } }, t('common.save')),
   ];
