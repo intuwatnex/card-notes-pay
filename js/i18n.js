@@ -16,7 +16,7 @@ const I18N = {
 
     'home.income': 'รายรับเดือนนี้', 'home.spending': 'ยอดใช้จ่าย', 'home.due': 'ต้องจ่าย',
     'home.remaining': 'คงเหลือ', 'home.installmentLoad': 'ผ่อนบัตร/เดือน',
-    'home.carLoan': 'ผ่อนรถ/เดือน', 'home.totalCommit': 'รวมภาระ/เดือน',
+    'home.carLoan': 'ผ่อนรถ/เดือน', 'home.totalCommit': 'ใช้จ่ายจริง/เดือน',
     'home.upcoming': 'ครบกำหนดเร็วๆ นี้', 'home.byCard': 'แยกตามบัตร', 'home.none': 'ไม่มีรายการ',
     'home.setIncome': 'ตั้งรายรับ', 'home.addIncome': '+ เพิ่มรายรับ', 'home.incomeLabel': 'แหล่งรายรับ',
     'home.lastSync': 'ซิงค์ล่าสุด', 'home.tapSync': 'แตะเพื่อซิงค์จาก Gmail',
@@ -80,7 +80,7 @@ const I18N = {
 
     'home.income': 'Income this month', 'home.spending': 'Spending', 'home.due': 'To pay',
     'home.remaining': 'Remaining', 'home.installmentLoad': 'Card inst./mo',
-    'home.carLoan': 'Car loan/mo', 'home.totalCommit': 'Total commit/mo',
+    'home.carLoan': 'Car loan/mo', 'home.totalCommit': 'Real spending/mo',
     'home.upcoming': 'Upcoming due', 'home.byCard': 'By card', 'home.none': 'No items',
     'home.setIncome': 'Set income', 'home.addIncome': '+ Add source', 'home.incomeLabel': 'Source',
     'home.lastSync': 'Synced', 'home.tapSync': 'Tap to sync from Gmail',

@@ -134,7 +134,7 @@ Screens.home = async () => {
   });
   const loanLoad = activeInst.filter(i => Number(i.totalMonths) >= 36).reduce((a, i) => a + computeInstallment(i).perMonth, 0);
   const instLoad = activeInst.filter(i => Number(i.totalMonths) < 36).reduce((a, i) => a + computeInstallment(i).perMonth, 0);
-  const totalCommit = loanLoad + instLoad;
+  const totalCommit = totalSpend - instLoad;
 
   const wrap = h('div', { class: 'screen' });
   wrap.append(monthPicker());
