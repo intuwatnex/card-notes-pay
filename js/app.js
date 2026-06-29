@@ -610,21 +610,25 @@ async function editIncome() {
   const list = h('div', { class: 'income-list' });
   const totalEl = h('div', { class: 'income-total' });
 
-  const renderItems = () => {
-    list.innerHTML = '';
+  const updateTotal = () => {
     const total = items.reduce((a, x) => a + (parseFloat(x.amount) || 0), 0);
     totalEl.textContent = '= ' + money(total);
+  };
+  const renderItems = () => {
+    list.innerHTML = '';
     items.forEach((item, idx) => {
       const labelInp = h('input', { class: 'input income-label-inp', type: 'text', value: item.label, placeholder: t('home.incomeLabel') });
       const amtInp = h('input', { class: 'input income-amt-inp', type: 'number', inputmode: 'decimal', value: item.amount || '', placeholder: '0.00' });
       labelInp.addEventListener('input', () => { item.label = labelInp.value; });
-      amtInp.addEventListener('input', () => { item.amount = parseFloat(amtInp.value) || 0; renderItems(); });
+      // updateTotal only — do NOT call renderItems() here; rebuilding the list kills iOS keyboard focus
+      amtInp.addEventListener('input', () => { item.amount = parseFloat(amtInp.value) || 0; updateTotal(); });
       const row = h('div', { class: 'income-row' }, [
         labelInp, amtInp,
         items.length > 1 ? h('button', { class: 'btn small ghost income-del', onclick: () => { items.splice(idx, 1); renderItems(); } }, '✕') : null,
       ]);
       list.append(row);
     });
+    updateTotal();
   };
   renderItems();
 

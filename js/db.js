@@ -92,9 +92,16 @@ const DB = (() => {
 
   const STORES = ['cards', 'spending', 'transactions', 'income', 'installments', 'meta'];
   async function importAll(data) {
-    for (const store of STORES) {
+    const syncStores = ['cards', 'spending', 'transactions', 'installments', 'meta'];
+    for (const store of syncStores) {
       await clear(store);
       for (const row of (data[store] || [])) await put(store, row);
+    }
+    // Only overwrite income if the import actually has income records
+    // (Mac sync always sends income:[] — preserve manually-entered income)
+    if (data.income && data.income.length > 0) {
+      await clear('income');
+      for (const row of data.income) await put('income', row);
     }
   }
 
