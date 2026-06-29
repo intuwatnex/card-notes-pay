@@ -42,6 +42,9 @@ const I18N = {
     'cards.uploadQR': 'อัปโหลดรูป QR', 'cards.changeQR': 'เปลี่ยน QR', 'cards.removeQR': 'ลบ QR',
     'cards.dayOfMonth': 'วันที่ (1-31)', 'cards.spendingHistory': 'ประวัติการใช้จ่าย',
 
+    'settings.sync': 'เซิร์ฟเวอร์ซิงค์',
+    'settings.syncDesc': 'ใส่ที่อยู่เซิร์ฟเวอร์ซิงค์บนเครื่อง Mac เพื่อให้ปุ่ม 🔄 ซิงค์ อ่าน Gmail ให้อัตโนมัติ (เว้นว่าง = นำเข้าไฟล์เอง)',
+    'settings.syncOk': 'เชื่อมต่อได้', 'settings.syncBad': 'เชื่อมต่อไม่ได้', 'settings.syncClear': 'ล้าง',
     'settings.lang': 'ภาษา', 'settings.backup': 'สำรองข้อมูล',
     'settings.export': 'สำรอง (.json)', 'settings.import': 'นำเข้า (.json)',
     'settings.exportXlsx': 'ส่งออก Excel (.xlsx)',
@@ -98,6 +101,9 @@ const I18N = {
     'cards.uploadQR': 'Upload QR image', 'cards.changeQR': 'Change QR', 'cards.removeQR': 'Remove QR',
     'cards.dayOfMonth': 'Day (1-31)', 'cards.spendingHistory': 'Spending history',
 
+    'settings.sync': 'Sync server',
+    'settings.syncDesc': "Enter your Mac's sync-server address so the 🔄 Sync button reads Gmail automatically (leave blank to import a file).",
+    'settings.syncOk': 'Connected', 'settings.syncBad': "Can't reach it", 'settings.syncClear': 'Clear',
     'settings.lang': 'Language', 'settings.backup': 'Backup',
     'settings.export': 'Backup (.json)', 'settings.import': 'Import (.json)',
     'settings.exportXlsx': 'Export Excel (.xlsx)',

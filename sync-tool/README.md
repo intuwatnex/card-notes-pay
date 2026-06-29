@@ -13,17 +13,24 @@ Start the local sync server (keep it running while you use the app):
 ```
 python3 sync_server.py
 ```
-It prints two URLs — open the app from one of them:
+It prints URLs — **open the app from one of them** (not the github.io URL):
 - on this Mac: `http://localhost:8787`
-- on your phone (same Wi-Fi): `http://<your-mac-ip>:8787`
+- on your phone (same Wi-Fi): `http://<your-mac-name>.local:8787` (e.g. `http://MacbookAir.local:8787`)
 
-Then just tap **🔄 Sync** in the app — it reads Gmail, parses the latest
-statements, and refreshes the data automatically (no file picking). Your
-birthdate (for the PDF passwords) lives in `config.json` on this Mac.
+Then just tap **🔄 Sync** — it reads Gmail, parses the latest statements, and
+refreshes automatically (no file picking). Your birthdate (for the PDF
+passwords) lives in `config.json` on this Mac.
 
-> The public GitHub Pages app can't reach the local server (browsers block
-> https→http), so use these URLs for one-tap sync. The Pages app still works
-> with manual file import.
+### Important: the public github.io app can't auto-sync
+The hosted app is **HTTPS**; this server is **HTTP**. Browsers (especially iOS)
+**block HTTPS pages from calling HTTP servers**, so on the github.io app Sync
+falls back to file import. For one-tap sync **on your phone**, add the
+`….local:8787` URL above to your Home Screen and use *that* app.
+
+> Want sync on the public app from anywhere? Put the server behind an HTTPS
+> tunnel (e.g. `cloudflared`) and paste that https URL into the app under
+> **⚙ Settings → Sync server** (add a secret token first — an open tunnel would
+> expose your data).
 
 ## Or: command-line (produces a file to import)
 ```

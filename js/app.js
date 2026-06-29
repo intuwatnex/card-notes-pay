@@ -235,9 +235,12 @@ function fetchTimeout(url, ms, opts = {}) {
   return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(id));
 }
 
+const syncBase = () => (localStorage.getItem('syncUrl') || '').trim().replace(/\/+$/, '');
+const syncUrl = (path) => { const b = syncBase(); return b ? b + '/' + path : path; };
+
 async function triggerSync() {
   let server = false;
-  try { server = (await fetchTimeout('api/ping', 1500)).ok; } catch (_) {}
+  try { server = (await fetchTimeout(syncUrl('api/ping'), 2500)).ok; } catch (_) {}
   if (server) return autoSync();
   showSyncSheet();
 }
@@ -247,7 +250,7 @@ async function autoSync() {
     h('div', { class: 'sync-loading' }, [h('div', { class: 'spinner' }), h('div', { class: 'muted' }, t('sync.reading'))]),
   ]);
   try {
-    const resp = await fetchTimeout('api/sync', 190000, { method: 'POST' });
+    const resp = await fetchTimeout(syncUrl('api/sync'), 190000, { method: 'POST' });
     const data = await resp.json();
     if (!resp.ok || data.ok === false) throw new Error((data && data.error) || 'sync failed');
     await DB.importAll(data);
@@ -402,6 +405,26 @@ Screens.settings = async () => {
     segBtn('ไทย', LANG === 'th', () => switchLang('th')),
     segBtn('English', LANG === 'en', () => switchLang('en')),
   ]));
+  // sync server
+  wrap.append(sectionTitle(t('settings.sync')));
+  wrap.append(h('div', { class: 'muted small mb' }, t('settings.syncDesc')));
+  const syncInput = h('input', { class: 'input', type: 'url', inputmode: 'url', autocapitalize: 'off',
+    autocorrect: 'off', spellcheck: 'false', placeholder: 'http://MacbookAir.local:8787',
+    value: localStorage.getItem('syncUrl') || '' });
+  wrap.append(syncInput);
+  wrap.append(h('div', { class: 'two-col', style: 'margin-top:10px' }, [
+    h('button', { class: 'btn primary', onclick: async () => {
+      const v = syncInput.value.trim().replace(/\/+$/, '');
+      if (v) localStorage.setItem('syncUrl', v); else localStorage.removeItem('syncUrl');
+      // quick reachability check
+      try {
+        const ok = (await fetchTimeout(syncUrl('api/ping'), 3000)).ok;
+        toast(ok ? '✓ ' + t('settings.syncOk') : '⚠ ' + t('settings.syncBad'));
+      } catch (_) { toast('⚠ ' + t('settings.syncBad')); }
+    } }, t('common.save')),
+    h('button', { class: 'btn', onclick: () => { localStorage.removeItem('syncUrl'); syncInput.value = ''; toast('✓'); } }, t('settings.syncClear')),
+  ]));
+
   // backup
   wrap.append(sectionTitle(t('settings.backup')));
   wrap.append(h('div', { class: 'muted small mb' }, t('settings.exportXlsxDesc')));
