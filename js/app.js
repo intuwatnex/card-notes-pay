@@ -199,6 +199,7 @@ Screens.pay = async () => {
   if (!cardsWithSpend.length) wrap.append(emptyNote(t('home.none')));
   cardsWithSpend.forEach(({ c, sp }) => {
     const paid = sp.paid;
+    const txCount = State.transactions.filter(x => x.cardId === c.id && x.month === month).length;
     const card = h('div', { class: 'pay-card' + (paid ? ' is-paid' : '') }, [
       h('div', { class: 'pay-head' }, [
         cardDot(c),
@@ -208,6 +209,9 @@ Screens.pay = async () => {
         ]),
         h('div', { class: 'row-amt big' }, money(sp.amount)),
       ]),
+      // View this month's transactions
+      txCount ? h('button', { class: 'btn ghost block tx-view', onclick: () => showMonthTx(c, month) },
+        `📋 ${t('pay.viewTx')} (${txCount})`) : null,
       // QR shown inline by default once uploaded; tap to enlarge / change / remove
       c.qr ? h('div', { class: 'pay-qr', onclick: () => showQR(c) }, [
         h('img', { src: c.qr, class: 'pay-qr-img', alt: 'QR' }),
@@ -491,6 +495,26 @@ function openModal(title, bodyEls, footerEls) {
   host.classList.remove('hidden');
 }
 function closeModal() { const host = $('#modalHost'); host.classList.add('hidden'); host.innerHTML = ''; }
+
+// Transactions for one card in one month (opened from the Pay tab).
+function showMonthTx(card, month) {
+  const txs = State.transactions.filter(x => x.cardId === card.id && x.month === month)
+    .sort((a, b) => txDateKey(b) - txDateKey(a));
+  const sp = State.spending.find(s => s.cardId === card.id && s.month === month);
+  const body = [
+    h('div', { class: 'tx-month' }, [h('span', {}, ymLabel(month)), sp ? h('strong', {}, money(sp.amount)) : h('span', {}, '')]),
+  ];
+  if (!txs.length) body.push(emptyNote(t('tx.none')));
+  txs.forEach(x => {
+    const credit = x.amount < 0;
+    body.push(h('div', { class: 'tx-row' }, [
+      h('div', { class: 'tx-date' }, (x.date || '').slice(0, 5)),
+      h('div', { class: 'tx-desc' }, x.desc || ''),
+      h('div', { class: 'tx-amt' + (credit ? ' credit' : '') }, (credit ? '+' : '') + money(Math.abs(x.amount))),
+    ]));
+  });
+  openModal(card.name, body);
+}
 
 function showQR(c) {
   openModal(c.name, [

@@ -23,6 +23,7 @@ const I18N = {
     'pay.amount': 'ยอด', 'pay.paid': 'จ่ายแล้ว', 'pay.topay': 'ยังไม่จ่าย',
     'pay.markPaid': 'ทำเครื่องหมายว่าจ่าย', 'pay.showQR': 'แสดง QR', 'pay.scanToPay': 'สแกนเพื่อจ่าย',
     'pay.noQR': 'ยังไม่มี QR สำหรับบัตรนี้', 'pay.totalDue': 'รวมต้องจ่าย', 'pay.day': 'วันที่',
+    'pay.viewTx': 'ดูรายการเดือนนี้',
 
     'spend.card': 'บัตร', 'spend.month': 'เดือน', 'spend.amount': 'จำนวนเงิน',
     'spend.note': 'โน้ต', 'spend.save': 'บันทึก', 'spend.history': 'ประวัติ',
@@ -82,6 +83,7 @@ const I18N = {
     'pay.amount': 'Amount', 'pay.paid': 'Paid', 'pay.topay': 'Unpaid',
     'pay.markPaid': 'Mark as paid', 'pay.showQR': 'Show QR', 'pay.scanToPay': 'Scan to pay',
     'pay.noQR': 'No QR saved for this card', 'pay.totalDue': 'Total to pay', 'pay.day': 'Day',
+    'pay.viewTx': "View this month's items",
 
     'spend.card': 'Card', 'spend.month': 'Month', 'spend.amount': 'Amount',
     'spend.note': 'Note', 'spend.save': 'Save', 'spend.history': 'History',
