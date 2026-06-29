@@ -143,7 +143,22 @@ def _krungsri_like(txt, brand):
     inst = None
     im = re.search(r"Installment Purchase\s+([\d,]+)\s*baht.*?=\s*([\d,]+)\s*baht/month", txt, re.S)
     if im:
-        inst = dict(principal=num(im.group(1)), perMonth=num(im.group(2)))
+        principal = num(im.group(1))
+        perm = num(im.group(2))
+        mm = re.search(r"for\s+(\d+)\s*months", txt)
+        months = int(mm.group(1)) if mm else max(1, round(principal / perm)) if perm else 1
+        rate = round((perm * months / principal - 1) * 100, 2) if principal else 0
+        # installment period: a date-pair on one line >60 days apart (start … end)
+        start = None
+        for d1, d2 in re.findall(r"(\d{2}/\d{2}/\d{2})\s+(\d{2}/\d{2}/\d{2})", txt):
+            try:
+                a = datetime.strptime(d1, "%d/%m/%y"); b = datetime.strptime(d2, "%d/%m/%y")
+                if (b - a).days > 60:
+                    start = a.strftime("%Y-%m-%d"); break
+            except ValueError:
+                pass
+        inst = dict(principal=principal, perMonth=perm, totalMonths=months,
+                    interestRate=rate, startDate=start)
     return [dict(issuer="Krungsri", last4=last4, type=brand, stmt="", due="",
                  amount=num(pay.group(1)) if pay else None, tx=tx, inst=inst)]
 
@@ -319,15 +334,22 @@ def build_import(records, ttb_receipts):
                                  perMonth=best["perMonth"], manualPaid=None))
         iid += 1
     # Krungsri/Central installment lines from statements
+    seen_inst = set()
     for r in records:
-        if r.get("inst"):
-            principal = round(r["inst"]["perMonth"] * 10, 2)  # ~10-month plan
-            installments.append(dict(id=iid, bank=r["issuer"],
-                                     detail=f"{r['type'] or r['issuer']} installment",
-                                     startDate=f"{r['month']}-01", principal=principal,
-                                     totalMonths=10, interestRate=0,
-                                     perMonth=r["inst"]["perMonth"], manualPaid=None))
-            iid += 1
+        ins = r.get("inst")
+        if not ins:
+            continue
+        sig = (r["issuer"], r["last4"], ins["principal"], ins["perMonth"])
+        if sig in seen_inst:
+            continue
+        seen_inst.add(sig)
+        installments.append(dict(id=iid, bank=r["issuer"],
+                                 detail=f"{r['type'] or r['issuer']} installment",
+                                 startDate=ins.get("startDate") or f"{r['month']}-01",
+                                 principal=ins["principal"], totalMonths=ins["totalMonths"],
+                                 interestRate=ins["interestRate"], perMonth=ins["perMonth"],
+                                 manualPaid=None))
+        iid += 1
 
     out = dict(_app="CardNotesPay", _version=1, _exportedAt=datetime.utcnow().isoformat() + "Z",
                cards=[cards[k] for k in order], spending=spending,

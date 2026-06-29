@@ -17,6 +17,7 @@ const I18N = {
     'home.remaining': 'คงเหลือ', 'home.installmentLoad': 'ภาระผ่อน/เดือน',
     'home.upcoming': 'ครบกำหนดเร็วๆ นี้', 'home.byCard': 'แยกตามบัตร', 'home.none': 'ไม่มีรายการ',
     'home.setIncome': 'ตั้งรายรับ',
+    'home.lastSync': 'ซิงค์ล่าสุด', 'home.tapSync': 'แตะเพื่อซิงค์จาก Gmail',
 
     'pay.month': 'เดือน', 'pay.due': 'ครบกำหนด', 'pay.stmt': 'วันสรุปยอด',
     'pay.amount': 'ยอด', 'pay.paid': 'จ่ายแล้ว', 'pay.topay': 'ยังไม่จ่าย',
@@ -72,6 +73,7 @@ const I18N = {
     'home.remaining': 'Remaining', 'home.installmentLoad': 'Installments/mo',
     'home.upcoming': 'Upcoming due', 'home.byCard': 'By card', 'home.none': 'No items',
     'home.setIncome': 'Set income',
+    'home.lastSync': 'Synced', 'home.tapSync': 'Tap to sync from Gmail',
 
     'pay.month': 'Month', 'pay.due': 'Due', 'pay.stmt': 'Statement',
     'pay.amount': 'Amount', 'pay.paid': 'Paid', 'pay.topay': 'Unpaid',

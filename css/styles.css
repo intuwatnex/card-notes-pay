@@ -205,6 +205,11 @@ select.input{appearance:none;-webkit-appearance:none}
 .pv-row{display:flex;justify-content:space-between;font-size:13.5px;color:var(--muted)}
 .pv-row strong{color:var(--text)}
 
+/* sync status line */
+.sync-line{width:100%;background:var(--surface);border:1px solid var(--line);color:var(--muted);
+  border-radius:12px;padding:9px 12px;font-size:12.5px;font-weight:600;cursor:pointer;text-align:center}
+.sync-line:active{transform:scale(.99)}
+
 /* sync loading */
 .sync-loading{display:flex;flex-direction:column;align-items:center;gap:14px;padding:20px 0}
 .spinner{width:38px;height:38px;border-radius:50%;border:4px solid var(--line);

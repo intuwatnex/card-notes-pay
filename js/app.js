@@ -40,6 +40,15 @@ function monthsBetween(startStr, end = new Date()) {
 }
 const fmtDate = (d) => (d instanceof Date ? d : new Date(d)).toLocaleDateString(LANG === 'th' ? 'th-TH' : 'en-US', { day: 'numeric', month: 'short', year: '2-digit' });
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+function timeAgo(iso) {
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  const th = LANG === 'th';
+  if (s < 60) return th ? 'เมื่อสักครู่' : 'just now';
+  const m = Math.floor(s / 60); if (m < 60) return m + (th ? ' นาทีที่แล้ว' : 'm ago');
+  const h2 = Math.floor(m / 60); if (h2 < 24) return h2 + (th ? ' ชม.ที่แล้ว' : 'h ago');
+  const d = Math.floor(h2 / 24); if (d < 30) return d + (th ? ' วันที่แล้ว' : 'd ago');
+  return new Date(iso).toLocaleDateString(th ? 'th-TH' : 'en-US', { day: 'numeric', month: 'short' });
+}
 
 function toast(msg) {
   const el = $('#toast');
@@ -120,6 +129,11 @@ Screens.home = async () => {
 
   const wrap = h('div', { class: 'screen' });
   wrap.append(monthPicker());
+
+  const ls = await DB.meta.get('lastSync');
+  wrap.append(h('button', { class: 'sync-line', onclick: () => triggerSync() }, [
+    h('span', {}, '🔄 ' + (ls && ls.value ? t('home.lastSync') + ' ' + timeAgo(ls.value) : t('home.tapSync'))),
+  ]));
 
   const stats = h('div', { class: 'stat-grid' }, [
     statCard(t('home.income'), money(income), 'income', () => editIncome()),
@@ -237,6 +251,7 @@ async function autoSync() {
     const data = await resp.json();
     if (!resp.ok || data.ok === false) throw new Error((data && data.error) || 'sync failed');
     await DB.importAll(data);
+    await DB.meta.set('lastSync', new Date().toISOString());
     await rerender('home');
     closeModal();
     const months = (data.spending || []).map(s => s.month).filter(Boolean).sort();
@@ -685,6 +700,7 @@ async function importData(e) {
     const data = JSON.parse(await file.text());
     if (!data.cards && !data.installments) throw new Error('bad');
     await DB.importAll(data);
+    await DB.meta.set('lastSync', new Date().toISOString());
     await rerender('home');
     toast('✓');
   } catch (_) { toast('✗ invalid file'); }
