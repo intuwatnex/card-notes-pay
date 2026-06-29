@@ -15,9 +15,10 @@ const I18N = {
     'title.installments': 'แผนผ่อนชำระ', 'title.cards': 'บัตรของฉัน', 'title.settings': 'ตั้งค่า',
 
     'home.income': 'รายรับเดือนนี้', 'home.spending': 'ยอดใช้จ่าย', 'home.due': 'ต้องจ่าย',
-    'home.remaining': 'คงเหลือ', 'home.installmentLoad': 'ภาระผ่อน/เดือน',
+    'home.remaining': 'คงเหลือ', 'home.installmentLoad': 'ผ่อนบัตร/เดือน',
+    'home.carLoan': 'ผ่อนรถ/เดือน', 'home.totalCommit': 'รวมภาระ/เดือน',
     'home.upcoming': 'ครบกำหนดเร็วๆ นี้', 'home.byCard': 'แยกตามบัตร', 'home.none': 'ไม่มีรายการ',
-    'home.setIncome': 'ตั้งรายรับ',
+    'home.setIncome': 'ตั้งรายรับ', 'home.addIncome': '+ เพิ่มรายรับ', 'home.incomeLabel': 'แหล่งรายรับ',
     'home.lastSync': 'ซิงค์ล่าสุด', 'home.tapSync': 'แตะเพื่อซิงค์จาก Gmail',
 
     'pay.month': 'เดือน', 'pay.due': 'ครบกำหนด', 'pay.stmt': 'วันสรุปยอด',
@@ -78,9 +79,10 @@ const I18N = {
     'title.installments': 'Installment Plans', 'title.cards': 'My Cards', 'title.settings': 'Settings',
 
     'home.income': 'Income this month', 'home.spending': 'Spending', 'home.due': 'To pay',
-    'home.remaining': 'Remaining', 'home.installmentLoad': 'Installments/mo',
+    'home.remaining': 'Remaining', 'home.installmentLoad': 'Card inst./mo',
+    'home.carLoan': 'Car loan/mo', 'home.totalCommit': 'Total commit/mo',
     'home.upcoming': 'Upcoming due', 'home.byCard': 'By card', 'home.none': 'No items',
-    'home.setIncome': 'Set income',
+    'home.setIncome': 'Set income', 'home.addIncome': '+ Add source', 'home.incomeLabel': 'Source',
     'home.lastSync': 'Synced', 'home.tapSync': 'Tap to sync from Gmail',
 
     'pay.month': 'Month', 'pay.due': 'Due', 'pay.stmt': 'Statement',

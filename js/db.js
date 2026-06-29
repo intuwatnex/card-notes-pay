@@ -62,7 +62,7 @@ const DB = (() => {
   const income = {
     all: () => getAll('income'),
     get: (month) => get('income', month),
-    save: (month, amount) => put('income', { month, amount }),
+    save: (month, amount, items) => put('income', { month, amount, items: items || [] }),
   };
   const installments = {
     all: () => getAll('installments'),

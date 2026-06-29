@@ -125,13 +125,16 @@ Screens.home = async () => {
   const monthSpend = State.spending.filter(s => s.month === month);
   const totalSpend = monthSpend.reduce((a, s) => a + (s.amount || 0), 0);
   const unpaid = monthSpend.filter(s => !s.paid).reduce((a, s) => a + (s.amount || 0), 0);
-  const instLoad = State.installments.filter(i => {
+  const activeInst = State.installments.filter(i => {
     if (!i.startDate) return false;
     const startYM = i.startDate.slice(0, 7);
     const endDate = addMonths(i.startDate, Number(i.totalMonths) - 1);
     const endYM = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}`;
     return month >= startYM && month <= endYM;
-  }).reduce((a, i) => a + computeInstallment(i).perMonth, 0);
+  });
+  const loanLoad = activeInst.filter(i => Number(i.totalMonths) >= 36).reduce((a, i) => a + computeInstallment(i).perMonth, 0);
+  const instLoad = activeInst.filter(i => Number(i.totalMonths) < 36).reduce((a, i) => a + computeInstallment(i).perMonth, 0);
+  const totalCommit = loanLoad + instLoad;
 
   const wrap = h('div', { class: 'screen' });
   wrap.append(monthPicker());
@@ -145,7 +148,9 @@ Screens.home = async () => {
     statCard(t('home.income'), money(income), 'income', () => editIncome()),
     statCard(t('home.spending'), money(totalSpend), 'spend'),
     statCard(t('home.due'), money(unpaid), 'due'),
+    statCard(t('home.carLoan'), money(loanLoad), 'loan'),
     statCard(t('home.installmentLoad'), money(instLoad), 'inst'),
+    statCard(t('home.totalCommit'), money(totalCommit), 'due'),
   ]);
   wrap.append(stats);
 
@@ -599,10 +604,39 @@ function showQR(c) {
 
 async function editIncome() {
   const cur = await DB.income.get(State.month);
-  const inp = h('input', { class: 'input', type: 'number', inputmode: 'decimal', value: cur ? cur.amount : '', placeholder: '0.00' });
-  openModal(t('home.setIncome') + ' · ' + ymLabel(State.month), [field(t('home.income') + ' (฿)', inp)], [
+  const initItems = (cur && cur.items && cur.items.length) ? cur.items : [{ label: '', amount: cur ? cur.amount : 0 }];
+  let items = initItems.map(x => ({ ...x }));
+
+  const list = h('div', { class: 'income-list' });
+  const totalEl = h('div', { class: 'income-total' });
+
+  const renderItems = () => {
+    list.innerHTML = '';
+    const total = items.reduce((a, x) => a + (parseFloat(x.amount) || 0), 0);
+    totalEl.textContent = '= ' + money(total);
+    items.forEach((item, idx) => {
+      const labelInp = h('input', { class: 'input income-label-inp', type: 'text', value: item.label, placeholder: t('home.incomeLabel') });
+      const amtInp = h('input', { class: 'input income-amt-inp', type: 'number', inputmode: 'decimal', value: item.amount || '', placeholder: '0.00' });
+      labelInp.addEventListener('input', () => { item.label = labelInp.value; });
+      amtInp.addEventListener('input', () => { item.amount = parseFloat(amtInp.value) || 0; renderItems(); });
+      const row = h('div', { class: 'income-row' }, [
+        labelInp, amtInp,
+        items.length > 1 ? h('button', { class: 'btn small ghost income-del', onclick: () => { items.splice(idx, 1); renderItems(); } }, '✕') : null,
+      ]);
+      list.append(row);
+    });
+  };
+  renderItems();
+
+  const addBtn = h('button', { class: 'btn ghost block', onclick: () => { items.push({ label: '', amount: 0 }); renderItems(); } }, t('home.addIncome'));
+
+  openModal(t('home.setIncome') + ' · ' + ymLabel(State.month), [list, addBtn, totalEl], [
     h('button', { class: 'btn', onclick: closeModal }, t('common.cancel')),
-    h('button', { class: 'btn primary', onclick: async () => { await DB.income.save(State.month, parseFloat(inp.value) || 0); closeModal(); await rerender(); } }, t('common.save')),
+    h('button', { class: 'btn primary', onclick: async () => {
+      const total = items.reduce((a, x) => a + (parseFloat(x.amount) || 0), 0);
+      await DB.income.save(State.month, total, items.filter(x => x.label || x.amount));
+      closeModal(); await rerender();
+    }}, t('common.save')),
   ]);
 }
 
