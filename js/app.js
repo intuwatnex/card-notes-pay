@@ -22,7 +22,7 @@ function h(tag, attrs = {}, children = []) {
 }
 
 const money = (n) => '฿' + (Math.round((n || 0) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-const todayYM = () => new Date().toISOString().slice(0, 7);
+const todayYM = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
 const ymLabel = (ym) => {
   const [y, m] = ym.split('-').map(Number);
   const d = new Date(y, m - 1, 1);
@@ -457,9 +457,11 @@ function monthPicker() {
   return h('div', { class: 'monthpicker' }, [prev, lbl, next]);
 }
 function shiftMonth(d) {
-  const [y, m] = State.month.split('-').map(Number);
-  const nd = new Date(y, m - 1 + d, 1);
-  State.month = nd.toISOString().slice(0, 7);
+  let [y, m] = State.month.split('-').map(Number);
+  let idx = (m - 1) + d;                 // 0-indexed month + delta
+  y += Math.floor(idx / 12);
+  m = ((idx % 12) + 12) % 12 + 1;        // wrap, back to 1-indexed
+  State.month = `${y}-${String(m).padStart(2, '0')}`;
   rerender();
 }
 function statCard(label, value, kind, onclick) {
