@@ -241,11 +241,13 @@ function fetchTimeout(url, ms, opts = {}) {
 
 const syncBase = () => (localStorage.getItem('syncUrl') || '').trim().replace(/\/+$/, '');
 const syncUrl = (path) => { const b = syncBase(); return b ? b + '/' + path : path; };
+const cloudDataUrl = () => (localStorage.getItem('cloudDataUrl') || '').trim();
 
 async function triggerSync() {
   let server = false;
   try { server = (await fetchTimeout(syncUrl('api/ping'), 2500)).ok; } catch (_) {}
   if (server) return autoSync();
+  if (cloudDataUrl()) return loadFromCloud();
   showSyncSheet();
 }
 
@@ -272,13 +274,43 @@ async function autoSync() {
   }
 }
 
+async function loadFromCloud() {
+  const url = cloudDataUrl();
+  if (!url) return showSyncSheet();
+  openModal(t('sync.title'), [
+    h('div', { class: 'sync-loading' }, [h('div', { class: 'spinner' }), h('div', { class: 'muted' }, t('sync.cloudLoading'))]),
+  ]);
+  try {
+    const resp = await fetchTimeout(url, 30000);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    await DB.importAll(data);
+    await DB.meta.set('lastSync', new Date().toISOString());
+    await rerender('home');
+    closeModal();
+    const months = (data.spending || []).map(s => s.month).filter(Boolean).sort();
+    toast('✓ ' + (months.length ? ymLabel(months[months.length - 1]) : '✓'));
+  } catch (e) {
+    openModal(t('sync.title'), [
+      h('div', { class: 'muted small mb' }, '⚠ ' + (e.message || e)),
+      h('div', { class: 'muted small mb' }, t('sync.errHint')),
+      ...syncButtons(),
+    ]);
+  }
+}
+
 function syncButtons() {
   const fileIn = h('input', { type: 'file', accept: 'application/json', style: 'display:none', onchange: (e) => { closeModal(); importData(e); } });
-  return [
+  const btns = [
     h('button', { class: 'btn primary block', onclick: () => fileIn.click() }, '⬆ ' + t('sync.import')),
     h('button', { class: 'btn block', style: 'margin-top:10px', onclick: () => { closeModal(); exportData(); } }, '⬇ ' + t('sync.export')),
     fileIn,
   ];
+  if (cloudDataUrl()) {
+    btns.unshift(h('button', { class: 'btn primary block', style: 'margin-bottom:10px',
+      onclick: () => loadFromCloud() }, '☁ ' + t('sync.cloud')));
+  }
+  return btns;
 }
 
 function showSyncSheet() {
@@ -427,6 +459,23 @@ Screens.settings = async () => {
       } catch (_) { toast('⚠ ' + t('settings.syncBad')); }
     } }, t('common.save')),
     h('button', { class: 'btn', onclick: () => { localStorage.removeItem('syncUrl'); syncInput.value = ''; toast('✓'); } }, t('settings.syncClear')),
+  ]));
+
+  // cloud data URL (for iPhone — fetches pre-built JSON from GitHub or any HTTPS URL)
+  wrap.append(sectionTitle(t('settings.cloud')));
+  wrap.append(h('div', { class: 'muted small mb' }, t('settings.cloudDesc')));
+  const cloudInput = h('input', { class: 'input', type: 'url', inputmode: 'url', autocapitalize: 'off',
+    autocorrect: 'off', spellcheck: 'false',
+    placeholder: 'https://raw.githubusercontent.com/…/data.json',
+    value: localStorage.getItem('cloudDataUrl') || '' });
+  wrap.append(cloudInput);
+  wrap.append(h('div', { class: 'two-col', style: 'margin-top:10px' }, [
+    h('button', { class: 'btn primary', onclick: () => {
+      const v = cloudInput.value.trim();
+      if (v) localStorage.setItem('cloudDataUrl', v); else localStorage.removeItem('cloudDataUrl');
+      toast('✓');
+    }}, t('common.save')),
+    h('button', { class: 'btn', onclick: () => { localStorage.removeItem('cloudDataUrl'); cloudInput.value = ''; toast('✓'); } }, t('settings.syncClear')),
   ]));
 
   // backup
