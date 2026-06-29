@@ -21,7 +21,7 @@ function h(tag, attrs = {}, children = []) {
   return e;
 }
 
-const money = (n) => '฿' + (Math.round((n || 0) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const money = (n) => '฿' + (Math.round((n || 0) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const todayYM = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
 const ymLabel = (ym) => {
   const [y, m] = ym.split('-').map(Number);
@@ -125,7 +125,13 @@ Screens.home = async () => {
   const monthSpend = State.spending.filter(s => s.month === month);
   const totalSpend = monthSpend.reduce((a, s) => a + (s.amount || 0), 0);
   const unpaid = monthSpend.filter(s => !s.paid).reduce((a, s) => a + (s.amount || 0), 0);
-  const instLoad = State.installments.map(i => computeInstallment(i)).filter(c => c.left > 0).reduce((a, c) => a + c.perMonth, 0);
+  const instLoad = State.installments.filter(i => {
+    if (!i.startDate) return false;
+    const startYM = i.startDate.slice(0, 7);
+    const endDate = addMonths(i.startDate, Number(i.totalMonths) - 1);
+    const endYM = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}`;
+    return month >= startYM && month <= endYM;
+  }).reduce((a, i) => a + computeInstallment(i).perMonth, 0);
 
   const wrap = h('div', { class: 'screen' });
   wrap.append(monthPicker());
@@ -329,10 +335,10 @@ Screens.installments = async () => {
   wrap.append(h('button', { class: 'btn primary block', onclick: () => editInstallment() }, '＋ ' + t('inst.add')));
   wrap.append(h('div', { class: 'note-line' }, '⏱ ' + t('inst.autoNote')));
 
-  if (!comps.length) wrap.append(emptyNote(t('home.none')));
-  comps.sort((a, b) => a.c.left - b.c.left).forEach(({ it, c }) => {
-    const done = c.left <= 0;
-    wrap.append(h('div', { class: 'inst-card' + (done ? ' done' : ''), onclick: () => editInstallment(it) }, [
+  const activeComps = comps.filter(x => x.c.left > 0);
+  if (!activeComps.length) wrap.append(emptyNote(t('home.none')));
+  activeComps.sort((a, b) => a.c.left - b.c.left).forEach(({ it, c }) => {
+    wrap.append(h('div', { class: 'inst-card', onclick: () => editInstallment(it) }, [
       h('div', { class: 'inst-head' }, [
         h('div', {}, [
           h('div', { class: 'row-title' }, `${it.bank}`),
@@ -346,7 +352,7 @@ Screens.installments = async () => {
       h('div', { class: 'prog' }, h('div', { class: 'prog-fill', style: `width:${c.progress * 100}%` })),
       h('div', { class: 'inst-meta' }, [
         chip(`${c.paid}/${c.totalMonths} ${t('inst.monthsUnit')}`),
-        done ? chip('✓ ' + t('inst.done'), 'ok') : chip(`${t('inst.left')} ${c.left} ${t('inst.monthsUnit')}`),
+        chip(`${t('inst.left')} ${c.left} ${t('inst.monthsUnit')}`),
         chip(`${t('inst.remaining')} ${money(c.remaining)}`),
         Number(it.interestRate) ? chip(`${it.interestRate}%`) : chip(t('inst.zeroPct'), 'ok'),
         chip(`${t('inst.end')} ${fmtDate(c.endDate)}`),
