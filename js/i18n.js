@@ -20,6 +20,7 @@ const I18N = {
     'home.upcoming': 'ครบกำหนดเร็วๆ นี้', 'home.byCard': 'แยกตามบัตร', 'home.none': 'ไม่มีรายการ',
     'home.setIncome': 'ตั้งรายรับ', 'home.addIncome': '+ เพิ่มรายรับ', 'home.incomeLabel': 'แหล่งรายรับ',
     'home.lastSync': 'ซิงค์ล่าสุด', 'home.tapSync': 'แตะเพื่อซิงค์จาก Gmail',
+    'home.netFree': 'คงเหลือสุทธิเดือนนี้',
 
     'pay.month': 'เดือน', 'pay.due': 'ครบกำหนด', 'pay.stmt': 'วันสรุปยอด',
     'pay.amount': 'ยอด', 'pay.paid': 'จ่ายแล้ว', 'pay.topay': 'ยังไม่จ่าย',
@@ -40,6 +41,7 @@ const I18N = {
     'inst.monthsUnit': 'งวด', 'inst.totalMonthlyLoad': 'รวมผ่อนต่อเดือน', 'inst.totalRemaining': 'ยอดคงเหลือรวม',
     'inst.zeroPct': '0% ไม่มีดอกเบี้ย', 'inst.autoNote': 'งวดอัปเดตอัตโนมัติตามวันที่',
     'inst.notes': 'บันทึก', 'inst.notesPlaceholder': 'บันทึกรายละเอียดเพิ่มเติม…',
+    'inst.ccRemaining': 'ยอดผ่อนบัตรคงเหลือรวม (ไม่รวม Car Loan)',
 
     'cards.add': 'เพิ่มบัตร', 'cards.name': 'ชื่อบัตร', 'cards.bank': 'ธนาคาร',
     'cards.stmt': 'วันสรุปยอด', 'cards.due': 'วันครบกำหนด', 'cards.qr': 'QR พร้อมเพย์ (รูป)',
@@ -85,6 +87,7 @@ const I18N = {
     'home.upcoming': 'Upcoming due', 'home.byCard': 'By card', 'home.none': 'No items',
     'home.setIncome': 'Set income', 'home.addIncome': '+ Add source', 'home.incomeLabel': 'Source',
     'home.lastSync': 'Synced', 'home.tapSync': 'Tap to sync from Gmail',
+    'home.netFree': 'Net remaining this month',
 
     'pay.month': 'Month', 'pay.due': 'Due', 'pay.stmt': 'Statement',
     'pay.amount': 'Amount', 'pay.paid': 'Paid', 'pay.topay': 'Unpaid',
@@ -105,6 +108,7 @@ const I18N = {
     'inst.monthsUnit': 'mo', 'inst.totalMonthlyLoad': 'Total monthly', 'inst.totalRemaining': 'Total remaining',
     'inst.zeroPct': '0% interest free', 'inst.autoNote': 'Months auto-update by date',
     'inst.notes': 'Notes', 'inst.notesPlaceholder': 'Add notes…',
+    'inst.ccRemaining': 'Credit card installments remaining (excl. Car Loan)',
 
     'cards.add': 'Add card', 'cards.name': 'Card name', 'cards.bank': 'Bank',
     'cards.stmt': 'Statement day', 'cards.due': 'Due day', 'cards.qr': 'PromptPay QR (image)',

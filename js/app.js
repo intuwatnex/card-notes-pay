@@ -135,6 +135,7 @@ Screens.home = async () => {
   const loanLoad = activeInst.filter(i => Number(i.totalMonths) >= 36).reduce((a, i) => a + computeInstallment(i).perMonth, 0);
   const instLoad = activeInst.filter(i => Number(i.totalMonths) < 36).reduce((a, i) => a + computeInstallment(i).perMonth, 0);
   const totalCommit = totalSpend - instLoad;
+  const netFree = income - loanLoad - totalSpend;
 
   const wrap = h('div', { class: 'screen' });
   wrap.append(monthPicker());
@@ -151,6 +152,7 @@ Screens.home = async () => {
     statCard(t('home.carLoan'), money(loanLoad), 'loan'),
     statCard(t('home.installmentLoad'), money(instLoad), 'inst'),
     statCard(t('home.totalCommit'), money(totalCommit), 'due'),
+    statCard(t('home.netFree'), money(netFree), netFree >= 0 ? 'income' : 'due', null, true),
   ]);
   wrap.append(stats);
 
@@ -335,9 +337,11 @@ Screens.installments = async () => {
   const comps = State.installments.map(it => ({ it, c: computeInstallment(it) }));
   const monthly = comps.filter(x => x.c.left > 0).reduce((a, x) => a + x.c.perMonth, 0);
   const remaining = comps.reduce((a, x) => a + x.c.remaining, 0);
+  const ccRemaining = comps.filter(x => Number(x.it.totalMonths) < 36).reduce((a, x) => a + x.c.remaining, 0);
   wrap.append(h('div', { class: 'stat-grid two' }, [
     statCard(t('inst.totalMonthlyLoad'), money(monthly), 'inst'),
     statCard(t('inst.totalRemaining'), money(remaining), 'due'),
+    statCard(t('inst.ccRemaining'), money(ccRemaining), 'inst', null, true),
   ]));
   wrap.append(h('button', { class: 'btn primary block', onclick: () => editInstallment() }, '＋ ' + t('inst.add')));
   wrap.append(h('div', { class: 'note-line' }, '⏱ ' + t('inst.autoNote')));
@@ -543,8 +547,9 @@ function shiftMonth(d) {
   State.month = `${y}-${String(m).padStart(2, '0')}`;
   rerender();
 }
-function statCard(label, value, kind, onclick) {
-  return h('div', { class: 'stat ' + (kind || '') + (onclick ? ' click' : ''), onclick }, [
+function statCard(label, value, kind, onclick, full) {
+  return h('div', { class: 'stat ' + (kind || '') + (onclick ? ' click' : ''), onclick,
+    style: full ? 'grid-column:1/-1' : undefined }, [
     h('div', { class: 'stat-label' }, label),
     h('div', { class: 'stat-value' }, value),
   ]);
