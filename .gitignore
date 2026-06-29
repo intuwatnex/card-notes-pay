@@ -11,3 +11,4 @@ Thumbs.db
 # personal data backups — DON'T commit your real financial data
 *backup*.json
 data-export*.json
+data.json
