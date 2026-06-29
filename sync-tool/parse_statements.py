@@ -56,6 +56,15 @@ def ym_from_filename(fn):
     return None
 
 
+def ym_from_date(s):
+    """YYYY-MM from a dd/mm/yy or dd/mm/yyyy statement date."""
+    m = re.search(r"\d{1,2}/(\d{2})/(\d{2,4})", s or "")
+    if not m:
+        return None
+    yy = m.group(2)
+    return f"{yy if len(yy) == 4 else '20' + yy}-{m.group(1)}"
+
+
 def day(s):
     m = re.search(r"(\d{2})[/-]\d{2}[/-]\d{2,4}", s or "")
     return int(m.group(1)) if m else None
@@ -159,7 +168,12 @@ def _krungsri_like(txt, brand):
                 pass
         inst = dict(principal=principal, perMonth=perm, totalMonths=months,
                     interestRate=rate, startDate=start)
-    return [dict(issuer="Krungsri", last4=last4, type=brand, stmt="", due="",
+    # Krungsri/Central put no date in the filename, so read the statement's own
+    # closing + due dates (the first two dd/mm/yy in the header) to date the record.
+    hdr = re.findall(r"\b(\d{2}/\d{2}/\d{2})\b", txt)
+    stmt = hdr[0] if hdr else ""
+    due = hdr[1] if len(hdr) > 1 else ""
+    return [dict(issuer="Krungsri", last4=last4, type=brand, stmt=stmt, due=due,
                  amount=num(pay.group(1)) if pay else None, tx=tx, inst=inst)]
 
 
@@ -250,13 +264,23 @@ def main():
             r = parse_ttb_receipt(txt)
             if r: ttb_receipts.append(r)
             continue
-        ym = ym_from_filename(fn) or email_month(att2date.get(fn))
+        fallback = ym_from_filename(fn) or email_month(att2date.get(fn))
         for rec in parser(txt, fn):
             if rec["amount"] is None:
                 skipped.append(fn + " (no amount)"); continue
-            rec["month"] = ym or (f"{rec['stmt'][6:10] if len(rec['stmt'])>=10 else ''}")
+            # Prefer the statement's own closing date (most accurate); else filename/email.
+            rec["month"] = ym_from_date(rec.get("stmt")) or fallback
             rec["file"] = fn
             records.append(rec)
+
+    # Dedup: one statement per (card, month) — the same statement can arrive twice
+    # (e.g. a regular e-statement + a call-center copy). Keep the richer one.
+    best = {}
+    for r in records:
+        k = (r["issuer"], r["last4"], r["month"])
+        if k not in best or len(r["tx"]) > len(best[k]["tx"]):
+            best[k] = r
+    records = list(best.values())
 
     # ---- print verification ----
     records.sort(key=lambda r: (r["issuer"], r["last4"], r["month"] or ""))
