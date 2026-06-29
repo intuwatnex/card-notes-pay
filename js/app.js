@@ -174,10 +174,12 @@ Screens.home = async () => {
     return { c, amt };
   }).filter(x => x.amt > 0).sort((a, b) => b.amt - a.amt);
   if (!byCard.length) wrap.append(emptyNote(t('home.none')));
+  const maxAmt = byCard[0]?.amt || 1;
   byCard.forEach(({ c, amt }) => {
-    const pct = totalSpend ? (amt / totalSpend * 100) : 0;
+    const pct = amt / maxAmt * 100;
+    const sharePct = totalSpend ? Math.round(amt / totalSpend * 100) : 0;
     wrap.append(h('div', { class: 'bar-row' }, [
-      h('div', { class: 'bar-label' }, [cardDot(c), h('span', {}, c.name)]),
+      h('div', { class: 'bar-label' }, [cardDot(c), h('span', {}, c.name), h('span', { class: 'bar-share' }, `${sharePct}%`)]),
       h('div', { class: 'bar-track' }, h('div', { class: 'bar-fill', style: `width:${pct}%;background:${c.color}` })),
       h('div', { class: 'bar-amt' }, money(amt)),
     ]));
@@ -336,29 +338,41 @@ Screens.installments = async () => {
   wrap.append(h('div', { class: 'note-line' }, '⏱ ' + t('inst.autoNote')));
 
   const activeComps = comps.filter(x => x.c.left > 0);
+  const doneComps = comps.filter(x => x.c.left <= 0);
+
+  const renderCard = ({ it, c }, done) => h('div', { class: 'inst-card' + (done ? ' done' : ''), onclick: () => editInstallment(it) }, [
+    h('div', { class: 'inst-head' }, [
+      h('div', {}, [
+        h('div', { class: 'row-title' }, `${it.bank}`),
+        h('div', { class: 'row-sub' }, it.detail || ''),
+      ]),
+      h('div', { class: 'inst-perm' }, [
+        h('div', { class: 'row-amt big' }, money(c.perMonth)),
+        h('div', { class: 'row-sub' }, '/' + t('inst.monthsUnit')),
+      ]),
+    ]),
+    h('div', { class: 'prog' }, h('div', { class: 'prog-fill', style: `width:${c.progress * 100}%` })),
+    h('div', { class: 'inst-meta' }, [
+      chip(`${c.paid}/${c.totalMonths} ${t('inst.monthsUnit')}`),
+      done ? chip('✓ ' + t('inst.done'), 'ok') : chip(`${t('inst.left')} ${c.left} ${t('inst.monthsUnit')}`),
+      done ? null : chip(`${t('inst.remaining')} ${money(c.remaining)}`),
+      Number(it.interestRate) ? chip(`${it.interestRate}%`) : chip(t('inst.zeroPct'), 'ok'),
+      chip(`${t('inst.end')} ${fmtDate(c.endDate)}`),
+    ]),
+  ]);
+
   if (!activeComps.length) wrap.append(emptyNote(t('home.none')));
-  activeComps.sort((a, b) => a.c.left - b.c.left).forEach(({ it, c }) => {
-    wrap.append(h('div', { class: 'inst-card', onclick: () => editInstallment(it) }, [
-      h('div', { class: 'inst-head' }, [
-        h('div', {}, [
-          h('div', { class: 'row-title' }, `${it.bank}`),
-          h('div', { class: 'row-sub' }, it.detail || ''),
-        ]),
-        h('div', { class: 'inst-perm' }, [
-          h('div', { class: 'row-amt big' }, money(c.perMonth)),
-          h('div', { class: 'row-sub' }, '/' + t('inst.monthsUnit'),)
-        ]),
-      ]),
-      h('div', { class: 'prog' }, h('div', { class: 'prog-fill', style: `width:${c.progress * 100}%` })),
-      h('div', { class: 'inst-meta' }, [
-        chip(`${c.paid}/${c.totalMonths} ${t('inst.monthsUnit')}`),
-        chip(`${t('inst.left')} ${c.left} ${t('inst.monthsUnit')}`),
-        chip(`${t('inst.remaining')} ${money(c.remaining)}`),
-        Number(it.interestRate) ? chip(`${it.interestRate}%`) : chip(t('inst.zeroPct'), 'ok'),
-        chip(`${t('inst.end')} ${fmtDate(c.endDate)}`),
-      ]),
-    ]));
-  });
+  activeComps.sort((a, b) => a.c.left - b.c.left).forEach(x => wrap.append(renderCard(x, false)));
+
+  if (doneComps.length) {
+    const details = h('details', { style: 'margin-top:12px' }, [
+      h('summary', { style: 'cursor:pointer;padding:8px 0;color:var(--muted);font-size:.9em' },
+        `▸ ${doneComps.length} completed installment${doneComps.length > 1 ? 's' : ''}`),
+    ]);
+    doneComps.sort((a, b) => b.c.endDate - a.c.endDate).forEach(x => details.append(renderCard(x, true)));
+    wrap.append(details);
+  }
+
   return wrap;
 };
 

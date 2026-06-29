@@ -105,9 +105,10 @@ body{
 
 /* bars */
 .bar-row{display:flex;align-items:center;gap:10px}
-.bar-label{display:flex;align-items:center;gap:8px;width:120px;min-width:120px;font-size:13px;overflow:hidden}
-.bar-label .cdot{width:24px;height:24px;font-size:11px;border-radius:7px}
+.bar-label{display:flex;align-items:center;gap:6px;width:130px;min-width:130px;font-size:13px;overflow:hidden}
+.bar-label .cdot{width:24px;height:24px;font-size:11px;border-radius:7px;flex-shrink:0}
 .bar-label span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-share{color:var(--muted);font-size:11px;flex-shrink:0;margin-left:auto}
 .bar-track{flex:1;height:9px;background:var(--surface2);border-radius:6px;overflow:hidden}
 .bar-fill{height:100%;border-radius:6px}
 .bar-amt{font-size:12px;font-weight:700;width:78px;text-align:right}
