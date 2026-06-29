@@ -349,8 +349,9 @@ Screens.installments = async () => {
   wrap.append(h('button', { class: 'btn primary block', onclick: () => editInstallment() }, '＋ ' + t('inst.add')));
   wrap.append(h('div', { class: 'note-line' }, '⏱ ' + t('inst.autoNote')));
 
-  const activeComps = comps.filter(x => x.c.left > 0);
-  const doneComps = comps.filter(x => x.c.left <= 0);
+  const toYM = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const activeComps = comps.filter(x => x.c.left > 0 || toYM(x.c.endDate) >= State.month);
+  const doneComps   = comps.filter(x => x.c.left <= 0 && toYM(x.c.endDate) < State.month);
 
   const renderCard = ({ it, c }, done) => h('div', { class: 'inst-card' + (done ? ' done' : ''), onclick: () => editInstallment(it) }, [
     h('div', { class: 'inst-head' }, [
